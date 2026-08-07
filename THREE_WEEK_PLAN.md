@@ -23,6 +23,12 @@ A demonstrable admin web app where you can:
 9. Track basic stock by batch  
 10. See a simple report / Margin-Guard alert (basic is OK)
 
+### Design (must exist before heavy UI/feature coding)
+- [ ] ERD + short data dictionary in `docs/design/`  
+- [ ] API endpoint list  
+- [ ] Dual-mode cost field notes + worked formula examples  
+- [ ] Core wireframes (login → products → batch → costs → allocation → prices → ledger)  
+
 ### Literature
 - [ ] Related-work notes covering inventory systems, landed cost, FX/pricing for SMEs, and similar tools  
 - [ ] Comparison table: POS vs inventory vs ERP vs Excel vs Tranz-Algo  
@@ -47,6 +53,7 @@ A demonstrable admin web app where you can:
 |---|---|---|
 | FastAPI, auth, FX, cost engine | Nixon | Musonda |
 | DB schema, inventory, ledger persistence | Musonda | Nixon |
+| System design (ERD, API list, wireframes) | Both (pair Day 1) | — |
 | React dashboard + forms | Split screens | Both |
 | Formula tests + demo scenario pack | Both (pair) | — |
 | Literature search + synthesis | Nixon | Musonda reviews / adds inventory & UI-related sources |
@@ -98,18 +105,46 @@ You are done with literature for these 3 weeks if a supervisor can read `docs/li
 
 ---
 
-## Week 1 — Backend foundation + cost engine (+ literature start)
+## Week 1 — Design freeze, backend foundation + cost engine (+ literature)
 
-**Outcome:** API can create products/batches, compute landed cost + suggested price for both modes. Literature sources list started.
+**Outcome:** Design artefacts frozen in `docs/design/`. API can create products/batches, compute landed cost + suggested price for both modes. Literature sources list started.
 
-### Days 1–2: Project skeleton
+### Day 1 (morning): Design checkpoint — do this before heavy coding
+**Both pair (Nixon + Musonda). Keep it fast; ugly sketches are fine.**
+
+Create folder `docs/design/` and produce:
+
+- [ ] **ERD** — users, products, tax_profiles, shipment_batches, batch_items, cost_entries, ledger_entries, fx_rate_cache  
+- [ ] **Data dictionary** — short meaning of each table/field (especially `cost_entry_mode`: `auto_fx` | `already_local`)  
+- [ ] **API endpoint list** — auth, products, shipments, costs, allocate, suggest-prices, ledger, fx rates  
+- [ ] **Dual-mode notes** — which fields are required in Auto FX vs Already-Local; how mixed paperwork is stored  
+- [ ] **Worked formula examples** — one Auto FX batch and one Already-Local batch (3 items each) with weight vs quantity allocation  
+- [ ] **Wireframes** (paper/Excalidraw/Figma) for:
+  1. Login  
+  2. Products list/create  
+  3. Shipments list  
+  4. Create batch + add items  
+  5. Cost entry (mode toggle)  
+  6. Allocation + landed cost review  
+  7. Price suggestion  
+  8. True-Cost Ledger  
+
+**Design freeze rule:** After Day 1 morning, do not add major entities/screens unless both agree. Build to this design for the rest of the 3 weeks.
+
+Suggested files:
+- `docs/design/erd.md` (or `.png` / `.drawio`)
+- `docs/design/api_endpoints.md`
+- `docs/design/cost_modes_and_formulas.md`
+- `docs/design/wireframes.md` (links/screenshots to sketches)
+
+### Days 1–2 (afternoon/evening): Project skeleton
 - [ ] `backend/` FastAPI project structure (**Nixon**)
 - [ ] `frontend/` React (Vite) app shell + routing (**Musonda**)
 - [ ] PostgreSQL via Supabase free tier **or** local Postgres (**both decide Day 1**)
-- [ ] DB models/migrations: users, products, shipment_batches, batch_items, tax_profiles (**Musonda**)
+- [ ] DB models/migrations matching the ERD: users, products, shipment_batches, batch_items, tax_profiles (**Musonda**)
 - [ ] JWT auth: register/login (admin user is enough) (**Nixon**)
 - [ ] README “Getting started” run instructions (**Nixon**)
-- [ ] Literature: create `docs/literature/sources.md` and add first 5 sources (**Nixon**)
+- [ ] Literature: create `docs/literature/sources.md` and add first 5 sources (**Nixon**) — *already started*
 
 ### Days 3–4: Dual-mode cost engine
 - [ ] Cost entry endpoints for a batch (**Nixon**)
@@ -118,16 +153,17 @@ You are done with literature for these 3 weeks if a supervisor can read `docs/li
 - [ ] Shipping allocation: **quantity** and **weight** (**both pair**)
 - [ ] Landed cost calculation service (**both pair**)
 - [ ] Price suggestion: `RP = LandedCost × (1 + margin)` (**Musonda**)
-- [ ] Unit tests for allocation + both modes (**both**)
-- [ ] Literature: finish 8–12 sources + first comparison table draft (**Nixon**)
+- [ ] Unit tests for allocation + both modes using Day 1 formula examples (**both**)
+- [ ] Literature: finish 8–12 sources + first comparison table draft (**Nixon**) — *already started*
 
 ### Day 5: Ledger + inventory hooks
 - [ ] Save True-Cost Ledger rows when a batch calculation is committed (**Musonda**)
 - [ ] Update stock quantities when a batch is received/committed (**Musonda**)
 - [ ] Seed one demo admin user + sample products (**Nixon**)
-- [ ] Literature: half-page gap statement by Nixon, reviewed by Musonda (**both**)
+- [ ] Literature: half-page gap statement by Nixon, reviewed by Musonda (**both**) — *already started*
 
 ### Week 1 demo checkpoint
+**Design:** `docs/design/` contains ERD, API list, formula examples, and wireframes  
 **App:** Postman/Swagger shows login → products → batch → costs (both modes) → allocate → suggest prices → ledger  
 **Literature:** `sources.md` exists with citations + comparison table started
 
@@ -135,10 +171,10 @@ You are done with literature for these 3 weeks if a supervisor can read `docs/li
 
 ## Week 2 — Frontend dashboard (full MVP UI) (+ related-work draft)
 
-**Outcome:** Browser click-through of the full MVP. Related-work draft exists.
+**Outcome:** Browser click-through of the full MVP, following Week 1 wireframes. Related-work draft exists.
 
 ### Days 1–2: App shell + master data
-- [ ] Login page (**Musonda**)
+- [ ] Login page (**Musonda**) — match wireframe
 - [ ] Auth-protected layout/nav (**Musonda**)
 - [ ] Products page list/create/edit (**Musonda**)
 - [ ] Tax profile simple form (**Nixon**)
@@ -146,7 +182,7 @@ You are done with literature for these 3 weeks if a supervisor can read `docs/li
 - [ ] Literature: start `related_work_draft.md` from Week 1 notes (**Nixon**)
 
 ### Days 3–4: Shipment workflow UI
-- [ ] Create shipment batch + add items (**both**)
+- [ ] Create shipment batch + add items (**both**) — match wireframes
 - [ ] Cost entry screen with mode toggle: **Auto FX | Already-Local** (**Nixon**)
 - [ ] Enter product costs, shipping total, duty/VAT (**Nixon**)
 - [ ] Run allocation; show weight vs quantity comparison (**both**)
@@ -160,10 +196,12 @@ You are done with literature for these 3 weeks if a supervisor can read `docs/li
 - [ ] Simple dashboard summary cards (**Nixon**)
 - [ ] Basic Margin-Guard “recheck” warning (**Nixon**)
 - [ ] Literature: Musonda review pass on clarity vs built UI/inventory (**Musonda**)
+- [ ] Quick design check: UI still matches wireframes; note any accepted changes in `docs/design/wireframes.md`
 
 ### Week 2 demo checkpoint
 **App:** Full browser walkthrough for one Already-Local batch and one Auto FX batch  
-**Literature:** `related_work_draft.md` (2–4 pages) ready for polish
+**Literature:** `related_work_draft.md` (2–4 pages) ready for polish  
+**Design:** Wireframes updated if screens changed during build
 
 ---
 
@@ -201,6 +239,7 @@ You are done with literature for these 3 weeks if a supervisor can read `docs/li
 - [ ] Tests pass for core formulas
 - [ ] README run + demo instructions clear
 - [ ] Literature folder is report-ready
+- [ ] Design folder still matches what was demoed (or changes noted)
 - [ ] Nixon and Musonda can present any part
 
 ---
@@ -240,10 +279,11 @@ You are done with literature for these 3 weeks if a supervisor can read `docs/li
 
 ## Immediate next actions (today / tomorrow)
 
-1. Create `backend/`, `frontend/`, and `docs/literature/` folders  
-2. Decide DB: Supabase free **or** local Postgres  
-3. **Nixon:** FastAPI + auth + models; start `docs/literature/sources.md` (literature lead)  
-4. **Musonda:** React shell + products UI stub  
-5. Pair: agree JSON shape for shipment + cost entry  
+1. Create `docs/design/` (and keep `docs/literature/` which already exists)  
+2. **Pair (Nixon + Musonda):** Day 1 Design checkpoint — ERD, API list, formula examples, wireframes  
+3. Decide DB: Supabase free **or** local Postgres  
+4. **Nixon:** FastAPI + auth + models (after design freeze)  
+5. **Musonda:** React shell + products UI stub (after wireframes)  
+6. Pair: lock JSON shape for shipment + cost entry from the design docs  
 
-If you want, next step can be scaffolding the actual `backend/` and `frontend/` starter code in this repo.
+If you want, next step can be drafting the actual `docs/design/` starter files (ERD, API list, formulas, wireframe outlines).
