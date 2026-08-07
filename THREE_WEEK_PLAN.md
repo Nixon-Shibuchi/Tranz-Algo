@@ -61,15 +61,16 @@ Keep literature light but continuous so the report is not empty when the app is 
 ### Week 1 literature (foundation)
 **Lead: Nixon | Review: Musonda**
 
-- [ ] Gather 8–12 sources (papers, textbooks, docs) on:
+- [x] Gather 8–12 sources (papers, textbooks, docs) on:
   - inventory / retail management systems
   - landed cost and import logistics
   - currency risk / exchange rates in trade
   - algorithmic or rule-based retail pricing
   - open-source ERP/inventory tools (for comparison only)
-- [ ] Create `docs/literature/sources.md` (citation + 2–3 sentence note each)
-- [ ] Draft comparison table: POS / inventory apps / ERP / Excel / shipping tools / Tranz-Algo
-- [ ] Write a half-page problem gap: why dual modes + explainable allocation matter
+- [x] Create `docs/literature/sources.md` (citation + 2–3 sentence note each)
+- [x] Draft comparison table: POS / inventory apps / ERP / Excel / shipping tools / Tranz-Algo
+- [x] Write a half-page problem gap: why dual modes + explainable allocation matter
+  - Saved in `docs/literature/gap_statement.md`
 
 ### Week 2 literature (deepen + link to design)
 **Lead: Nixon | Musonda adds inventory/UI-related sources where useful**

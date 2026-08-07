@@ -257,6 +257,7 @@ Tranz-Algo answers: *“What did this imported item actually cost me, what shoul
 - Improved plan: `Tranz-Algo Improved Final Year Project Plan.docx`
 - Work plan (collaborative notes): `Tranz-Algo Work plan V1.0.docx`
 - Next 3 weeks plan: `THREE_WEEK_PLAN.md`
+- Week 1 literature: `docs/literature/sources.md`, `docs/literature/gap_statement.md`
 
 ---
 
