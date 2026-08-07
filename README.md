@@ -256,6 +256,7 @@ Tranz-Algo answers: *“What did this imported item actually cost me, what shoul
 - Original proposal: `tranzalgo proposal.docx`
 - Improved plan: `Tranz-Algo Improved Final Year Project Plan.docx`
 - Work plan (collaborative notes): `Tranz-Algo Work plan V1.0.docx`
+- Next 3 weeks plan: `THREE_WEEK_PLAN.md`
 
 ---
 
