@@ -1,0 +1,42 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+~$*
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.expo/
+*.log
+npm-debug.log*
+
+# Env / secrets
+*.pem
+credentials.json
+service-account*.json
+
+# Local DB / tooling
+*.sqlite3
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+
+# Temporary generator scripts
+_gen_*.py
+_update_*.py
+_read_*.py
