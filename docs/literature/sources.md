@@ -114,6 +114,8 @@ Documents a free exchange-rate source suitable for Auto FX mode. Supports the pr
 ### Reading the table
 Most similar student projects stop at inventory CRUD or simple markup. Commercial ERPs can do landed cost but are broad and heavy. Shipping companies may convert freight to local currency, but they do not allocate all import costs across a retailer’s SKUs or guard margins later. **Tranz-Algo’s difference is the decision-support niche between paperwork and selling price.**
 
+**Implementation note (current MVP):** Tranz-Algo now includes a simple **Record sale** stock-out so on-hand quantities stay truthful after commit. This is **not** a POS—there are no payments, customers, or receipts. Sales remain out of the core academic claim; the claim stays landed-cost explanation + dual modes + ledger + Margin-Guard.
+
 ---
 
 ## Source coverage checklist (Week 1 requirement)
@@ -129,9 +131,9 @@ Most similar student projects stop at inventory CRUD or simple markup. Commercia
 
 ---
 
-## Next (Week 2)
+## Week 2–3 literature outputs
 
-Expand this file into a narrative related-work draft:
+- [x] `related_work_draft.md` — narrative related work + feature→gap map  
+- [x] `related_work_v1.md` — report-ready polish  
 
-- `docs/literature/related_work_draft.md`
-- Map dual modes, Allocation Comparator, True-Cost Ledger, and Margin-Guard to the gaps identified here and in `gap_statement.md`.
+Evaluation scenarios: `docs/scenarios/` (spreadsheet oracles + `eval_note.md`).

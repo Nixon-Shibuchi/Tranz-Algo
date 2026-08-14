@@ -31,6 +31,7 @@ service-account*.json
 
 # Local DB / tooling
 *.sqlite3
+tranzalgo.db
 .coverage
 htmlcov/
 .pytest_cache/

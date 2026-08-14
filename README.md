@@ -19,33 +19,68 @@ Tranz-Algo turns import paperwork into **per-item landed cost → suggested reta
 
 ---
 
-## How the app will work
+## How to use the app
 
-### Typical flow (after goods/shipment costs are known)
+In-app screens stay focused on data and actions. This section is the full how-to.
 
-1. **Admin signs in** to the web dashboard.
-2. **Register products** (SKU, name, weight/qty attributes, optional tax profile).
-3. **Create a shipment batch** and attach products received in that import.
-4. **Choose a cost-entry mode** for the batch (or mix modes on one batch):
-   - **Auto FX** — enter foreign supplier prices; the app converts using a free FX API (with cached/manual fallback).
-   - **Already-Local** — paste amounts already converted by the shipper/clearing agent (no forced API conversion).
-5. **Enter shared charges** — shipping invoice, customs duty, import VAT (from paperwork and/or tax profiles).
-6. **Allocate shared costs** using the Allocation Comparator:
-   - weight-based
-   - quantity-based
-   - value-based (stretch / later)
-7. **Review landed cost per item** and the **True-Cost Ledger** (inputs, mode, rate/source, allocation method).
-8. **Get a suggested retail price**:
-   - `Suggested RP = Landed Cost × (1 + Profit Margin)`
-9. **Accept / adjust the selling price**, then track stock against that batch.
-10. **Margin-Guard** (where enabled) warns if FX movement later erodes the safety margin.
+### Main screens
+
+| Screen | What you do |
+|---|---|
+| **Dashboard** | Overview of units available, low/out stock, draft vs committed shipments. **Start fresh** clears business data (type `RESET`). |
+| **Products** | Catalogue CRUD (SKU + name required). Optional: weight, reorder level, category, tax profile (under extra fields). |
+| **Shipments** | Create a batch, open it, or delete non-committed batches. |
+| **Shipment detail** | Add lines, save costs, allocate, suggest prices, choose auto/manual retail, commit. |
+| **Stock** | Available / low / out board. **Record sale** / **Sell** reduces units (not a full POS). Qty rises on **commit**. Low = at or below reorder level. |
+| **Tax profiles** | Optional duty/VAT % templates. You can still paste duty/VAT totals on a shipment from clearing paperwork. |
+
+### Day-to-day workflow
+
+1. **Sign in** (register an admin first if needed).
+2. **Add products** (SKU, name; set default weight if using weight allocation).
+3. **Create a shipment** and choose a primary cost mode:
+   - **Already-Local** — paste local amounts from shipper/agent (easiest demo).
+   - **Auto FX** — foreign unit prices + exchange rate (Fetch FX or manual).
+   - **Mixed** — combine modes per line.
+4. **Add items** to the batch (qty, local or foreign unit cost).
+5. **Save costs** — shipping total, optional duty/VAT totals, paperwork source.
+6. **Run allocation** (quantity or weight) — see plain-text landed unit costs (+ comparison line).
+7. **Suggest prices** (profit margin e.g. `0.30` = 30%) — then choose:
+   - **Use these automatically**, or
+   - **Enter prices manually** (suggestions pre-filled).
+8. **Commit batch** — locks the shipment, writes the True-Cost Ledger, increases stock, applies retail prices.
+9. Check **Stock**. Use **Record sale** / **Sell** when units leave the shelf (reduces stock; not a full POS).
+10. Run **Margin-Guard** as needed.
+
+### Shipment statuses
+
+| Status | Meaning |
+|---|---|
+| **draft** | Editable; stock and retail not applied yet. |
+| **costed** | Allocation (and usually suggestions) done; can still adjust before lock. |
+| **committed** | Read-only; ledger written, stock increased, retail applied. |
+
+### Demo path (Already-Local)
+
+Example numbers used in testing:
+
+- Products: FAN-001 (5 kg), BLD-002 (3 kg), KTL-003 (1.5 kg)
+- Lines: 10×520, 5×780, 10×260
+- Costs: shipping 4500, duty 1200, VAT 1800
+- Allocate by **quantity**, margin **0.30**
+
+Expected landed units ≈ 820 / 1080 / 560; suggested retail ≈ 1066 / 1404 / 728.
+
+---
+
+## How taxes and cost modes work
 
 ### When to use it
 
 | Timing | Useful? | Why |
 |---|---|---|
-| Before buying / booking a shipper | Limited | Can do rough what-if only if you estimate costs |
-| After invoices/paperwork exist | **Primary** | True landed cost needs real product, freight, duty/VAT figures |
+| Before buying / booking a shipper | Limited | Rough what-if only if you estimate costs |
+| After invoices/paperwork exist | **Primary** | True landed cost needs real figures |
 | After prices are set | Yes | Margin-Guard + inventory/batch reporting |
 
 ### How taxes are handled
@@ -54,20 +89,20 @@ The app **does not** call a live ZRA/customs assessment API.
 
 Taxes come from:
 
-1. **Already-Local paperwork** — duty/VAT totals from the clearing/shipping documents.
-2. **Configurable duty/VAT profiles** — admin-defined templates (e.g. category → duty % + VAT %).
-3. **Manual override** — exact amounts typed per batch/item when needed.
+1. **Already-Local paperwork** — duty/VAT totals from clearing/shipping documents.
+2. **Configurable duty/VAT profiles** — admin-defined templates.
+3. **Manual override** — exact amounts on a batch when needed.
 
-Tranz-Algo **stores, applies, allocates, and explains** tax costs. It does **not** legally assess customs for the government.
+Tranz-Algo **stores, applies, allocates, and explains** tax costs. It does **not** legally assess customs.
 
-### Dual cost-entry modes (important)
+### Dual cost-entry modes
 
 | Mode | Input | FX API? | Best when |
 |---|---|---|---|
-| **Auto FX** | Foreign product (and optionally freight) prices | Yes (with cache/manual fallback) | Supplier invoice is still in USD/CNY/etc. |
-| **Already-Local** | Local amounts from shipper/agent/bank | Not required for those fields | Freight/duty already converted for you |
+| **Auto FX** | Foreign product prices | Yes (cache/manual fallback) | Supplier invoice still in USD/CNY/etc. |
+| **Already-Local** | Local amounts from shipper/agent | Not required for those fields | Freight/duty already converted |
 
-Mixed paperwork is supported (example: Auto FX on supplier lines + Already-Local on shipper freight/duty).
+Mixed paperwork is supported (e.g. Auto FX on supplier lines + Already-Local on freight/duty).
 
 ---
 
@@ -101,21 +136,23 @@ If active retail price falls below recomputed landed cost × (1 + safety margin)
 
 ### In scope
 
-- Web admin dashboard
-- Auth (JWT)
+- Web admin dashboard (React)
+- Auth (JWT register/login)
 - Product + shipment-batch inventory
-- Dual cost-entry modes
-- Landed-cost engine + allocation comparator
-- Price suggestion + Margin-Guard
+- Dual cost-entry modes (Auto FX / Already-Local / mixed)
+- Landed-cost engine + allocation comparator (quantity + weight)
+- Price suggestion + auto/manual accept before commit
 - True-Cost Ledger / audit trail
-- Basic inventory and financial summary reports
-- Evaluation against a spreadsheet baseline
+- Stock board (available / low / out) + **simple Record sale** (stock-out only)
+- Margin-Guard recheck
+- Admin **Start fresh** (clear business data)
+- Dashboard summary cards
 
 ### Out of scope
 
 - Booking/tracking international transport
 - Payment gateway / card processing
-- Full POS checkout for customers
+- Full POS checkout for customers (Record sale is stock-out only)
 - Automated legal HS-code customs filing
 - Paid trade/ERP platforms
 
@@ -125,15 +162,16 @@ If active retail price falls below recomputed landed cost × (1 + safety margin)
 
 | Layer | Technology | Why |
 |---|---|---|
-| Language | Python 3 | Numeric logic + APIs |
+| Language | Python 3.11–3.13 | Numeric logic + APIs |
 | Backend | FastAPI + Uvicorn | Fast, free, auto OpenAPI docs |
-| Database | PostgreSQL (Supabase free tier) | Relational data; free tier |
-| Frontend | React (Vite) web admin | Best for tables, ledgers, demos |
-| Optional mobile | React Native / Expo | Stretch goal for stock lookup |
-| FX data | Frankfurter.app (or similar free FX API) | Auto FX mode; no paid FX licence |
+| Database | **SQLite** (default) | Zero-setup local MVP; demo-ready |
+| Database (optional) | PostgreSQL / Supabase | Set `DATABASE_URL` for deploy |
+| Frontend | React (Vite) web admin | Tables, ledgers, demos |
+| Optional mobile | React Native / Expo | Stretch goal |
+| FX data | Frankfurter + open.er-api.com fallback | Auto FX; manual rate always available |
 | Auth | JWT | Secure admin access |
-| Testing | pytest + scenario packs | Verify formulas |
-| IDE | VS Code | Free |
+| Testing | pytest | Formula verification |
+| IDE | VS Code / Cursor | Free |
 
 ### What you need to run / build it
 
@@ -143,7 +181,7 @@ If active retail price falls below recomputed landed cost × (1 + safety margin)
 - Python 3.11+ (recommended)
 - Node.js LTS + npm
 - VS Code (or similar)
-- Supabase account (free) **or** local PostgreSQL
+- Supabase account (optional) **or** local PostgreSQL **or** SQLite for local MVP (**default**)
 - Internet access for FX API in Auto FX mode (Already-Local can work offline for conversion)
 
 **Hardware**
@@ -153,46 +191,108 @@ If active retail price falls below recomputed landed cost × (1 + safety margin)
 
 **Accounts / keys (free)**
 
-- Supabase project URL + anon/service keys (or local DB URL)
-- No paid FX key required if using Frankfurter-style open rates
+- Optional Supabase/Postgres URL (SQLite works out of the box)
+- No paid FX key required (Frankfurter + open.er-api.com fallback; manual rate always available)
 - Optional: free hosting later for demo (not required for viva if run locally)
 
 ---
 
-## Suggested project structure (planned)
+## Current implementation status
+
+Working local MVP (FastAPI + React + SQLite):
+
+- Auth, products, tax profiles, shipments (items, costs, allocate, suggest, commit, ledger)
+- Dual cost modes + FX fetch/cache/manual
+- Stock board + Record sale
+- Margin-Guard recheck, dashboard, Start fresh
+- Confirm dialogs on create/update/delete and costing actions
+- Costing unit tests (`backend/tests/test_costing.py`)
+
+Still open for viva prep: demo script practice, optional seed script, GitHub push/tag. Literature + evaluation pack are written.
+
+---
+
+## Getting started
+
+
+### Backend
+
+```powershell
+cd backend
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+copy .env.example .env
+uvicorn app.main:app --reload --port 8000
+```
+
+> Use **Python 3.11–3.13** (not 3.14 yet) so FastAPI/pydantic wheels install cleanly on Windows.
+
+- API docs: http://127.0.0.1:8000/docs  
+- First-time: use **Register** on the login page (or `POST /api/v1/auth/register`)
+
+### Frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+- App: http://127.0.0.1:5173  
+
+### Quick demo path
+
+See **How to use the app** above (workflow + demo numbers).
+
+### Tests
+
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+pytest -q
+```
+
+---
+
+## Project structure
 
 ```text
 Tranz-Algo/
 ├── backend/                 # FastAPI app
 │   ├── app/
-│   │   ├── api/             # routes (auth, products, shipments, pricing)
-│   │   ├── core/            # config, security, FX client
-│   │   ├── models/          # DB models
-│   │   ├── schemas/         # Pydantic schemas
-│   │   ├── services/        # landed cost, allocation, suggestion, margin-guard
+│   │   ├── api/v1/          # auth, products, shipments, fx, inventory/sales, admin
+│   │   ├── core/            # config, security
+│   │   ├── models/          # DB models (incl. sales)
+│   │   ├── schemas/
+│   │   ├── services/        # costing, FX
 │   │   └── main.py
 │   ├── tests/
 │   └── requirements.txt
-├── frontend/                # React (Vite) admin dashboard
-│   ├── src/
-│   └── package.json
-├── docs/                    # design notes, ledger examples, evaluation pack
+├── frontend/                # React (Vite) admin
+│   ├── public/              # logo assets
+│   └── src/pages/           # dashboard, products, shipments, stock, tax
+├── docs/
+│   ├── design/              # ERD, API, formulas, wireframes
+│   └── literature/          # sources + gap statement
 ├── README.md
-└── Tranz-Algo Improved Final Year Project Plan.docx
+└── THREE_WEEK_PLAN.md
 ```
 
 ---
 
 ## MVP checklist
 
-- [ ] User authentication + admin dashboard
-- [ ] Products and shipment-batch inventory
-- [ ] Auto FX + Already-Local cost entry
-- [ ] At least two allocation methods + landed-cost calculation
-- [ ] Price suggestion with configurable margin
-- [ ] True-Cost Ledger (mode, inputs, source, allocation)
-- [ ] Basic reports
-- [ ] Spreadsheet baseline evaluation for both modes
+- [x] User authentication + admin dashboard
+- [x] Products and shipment-batch inventory
+- [x] Auto FX + Already-Local cost entry
+- [x] Quantity + weight allocation + landed-cost calculation
+- [x] Price suggestion with configurable margin (auto or manual accept)
+- [x] True-Cost Ledger on commit
+- [x] Stock board + simple Record sale
+- [x] Margin-Guard recheck + dashboard summary
+- [x] Spreadsheet baseline evaluation pack (`docs/scenarios/`)
+- [ ] One-click demo seed script (register via UI / Start fresh for now)
 
 ### Stretch goals
 
@@ -212,7 +312,7 @@ Many student and commercial systems already do inventory, POS, or basic markup p
 
 | Similar project / app type | What it usually does | What Tranz-Algo does differently |
 |---|---|---|
-| **POS / retail shop apps** | Sell items, take payments, print receipts | Does **not** replace checkout; focuses on **true cost + price decisions** before/while stock is sold elsewhere |
+| **POS / retail shop apps** | Sell items, take payments, print receipts | Does **not** replace checkout; focuses on **true cost + price decisions**. Optional **Record sale** only reduces stock (no payments). |
 | **Normal inventory apps** | Stock in/out counts, low-stock alerts | Tracks stock by **import shipment batch**, with cost history attached to that batch |
 | **Shipping / logistics apps** | Book, track, and deliver goods | Does **not** ship anything; **uses** shipper/clearing invoices to split shared costs onto items |
 | **Accounting / ERP (Odoo, SAP-like)** | Broad finance, HR, procurement, inventory | Narrow, free, SME-focused **decision support** for landed cost and pricing only |
@@ -258,11 +358,13 @@ Tranz-Algo answers: *“What did this imported item actually cost me, what shoul
 - Work plan (collaborative notes): `Tranz-Algo Work plan V1.0.docx`
 - Next 3 weeks plan: `THREE_WEEK_PLAN.md`
 - Week 1 literature: `docs/literature/sources.md`, `docs/literature/gap_statement.md`
-- Design artefacts (Week 1 Day 1): `docs/design/` (ERD, API list, formulas, wireframes)
+- Related work: `docs/literature/related_work_draft.md`, `docs/literature/related_work_v1.md`
+- Evaluation scenarios: `docs/scenarios/` (see `eval_note.md`)
+- Design artefacts: `docs/design/` — see `docs/design/README.md`
 
 ---
 
 ## Licence / status
 
 Final-year project prototype (University of Zambia — Computing and Informatics).  
-Build status: planning / design stage (implementation not started in this repo yet).
+Build status: **working MVP** (local FastAPI + React + SQLite). Evaluation pack and literature Week 2–3 drafts still in progress.
