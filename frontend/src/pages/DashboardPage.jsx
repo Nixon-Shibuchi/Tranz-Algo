@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import {
+  LIST_PREVIEW_LIMIT,
+  ListCapBar,
+  ListDrawer,
+} from "../components/ListDrawer";
 import { STOCK_STATUS_SHORT, stockStatus } from "../stock";
 
 export default function DashboardPage() {
@@ -11,6 +16,7 @@ export default function DashboardPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [stockDrawerOpen, setStockDrawerOpen] = useState(false);
 
   async function load() {
     const [s, inv] = await Promise.all([api("/reports/summary"), api("/inventory")]);
@@ -26,17 +32,17 @@ export default function DashboardPage() {
     let units = 0;
     let low = 0;
     let out = 0;
-    const top = [...inventory]
+    const inStock = [...inventory]
       .filter((p) => Number(p.stock_on_hand || 0) > 0)
-      .sort((a, b) => Number(b.stock_on_hand || 0) - Number(a.stock_on_hand || 0))
-      .slice(0, 4);
+      .sort((a, b) => Number(b.stock_on_hand || 0) - Number(a.stock_on_hand || 0));
+    const top = inStock.slice(0, LIST_PREVIEW_LIMIT);
     for (const p of inventory) {
       units += Number(p.stock_on_hand || 0);
       const s = stockStatus(p);
       if (s === "low") low += 1;
       if (s === "out") out += 1;
     }
-    return { units, low, out, top };
+    return { units, low, out, top, inStock };
   }, [inventory]);
 
   function openConfirm() {
@@ -74,14 +80,18 @@ export default function DashboardPage() {
     <div>
       <div className="page-head">
         <div>
+          <span className="page-kicker">Overview</span>
           <h1>Dashboard</h1>
+          <p className="muted" style={{ margin: 0 }}>
+            Shelf stock and shipment status at a glance.
+          </p>
         </div>
         <div className="actions-inline">
           <button type="button" className="btn" onClick={openConfirm}>
             Start fresh
           </button>
-          <Link className="btn primary" to="/products">
-            Add products
+          <Link className="btn primary" to="/true-cost">
+            Open True Cost
           </Link>
         </div>
       </div>
@@ -117,31 +127,67 @@ export default function DashboardPage() {
       <div className="card dash-stock">
         <div className="table-head">
           <h2>On the shelf</h2>
-          <Link to="/inventory">See all</Link>
+          <Link to="/inventory">Open stock</Link>
         </div>
         {stockSnap.top.length === 0 ? (
           <p className="muted empty-state">No stock yet.</p>
         ) : (
-          <ul className="dash-stock-list">
-            {stockSnap.top.map((p) => (
-              <li key={p.id}>
-                <div>
-                  <strong>{p.sku}</strong>
-                  <div className="muted">{p.name}</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <strong>{p.stock_on_hand}</strong>
+          <>
+            <ul className="dash-stock-list">
+              {stockSnap.top.map((p) => (
+                <li key={p.id}>
                   <div>
-                    <span className={`badge stock-badge stock-${stockStatus(p)}`}>
-                      {STOCK_STATUS_SHORT[stockStatus(p)]}
-                    </span>
+                    <strong>{p.sku}</strong>
+                    <div className="muted">{p.name}</div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <div style={{ textAlign: "right" }}>
+                    <strong>{p.stock_on_hand}</strong>
+                    <div>
+                      <span className={`badge stock-badge stock-${stockStatus(p)}`}>
+                        {STOCK_STATUS_SHORT[stockStatus(p)]}
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {stockSnap.inStock.length > LIST_PREVIEW_LIMIT && (
+              <ListCapBar
+                total={stockSnap.inStock.length}
+                shown={stockSnap.top.length}
+                noun="in-stock SKUs"
+                onOpen={() => setStockDrawerOpen(true)}
+              />
+            )}
+          </>
         )}
       </div>
+
+      <ListDrawer
+        open={stockDrawerOpen}
+        onClose={() => setStockDrawerOpen(false)}
+        title="On the shelf"
+        subtitle="All products with units available, highest stock first."
+      >
+        <ul className="dash-stock-list">
+          {stockSnap.inStock.map((p) => (
+            <li key={p.id}>
+              <div>
+                <strong>{p.sku}</strong>
+                <div className="muted">{p.name}</div>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <strong>{p.stock_on_hand}</strong>
+                <div>
+                  <span className={`badge stock-badge stock-${stockStatus(p)}`}>
+                    {STOCK_STATUS_SHORT[stockStatus(p)]}
+                  </span>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </ListDrawer>
 
       {confirmOpen && (
         <div className="modal-backdrop" role="presentation" onClick={closeConfirm}>

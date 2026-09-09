@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { useConfirm } from "../components/ConfirmDialog";
+import {
+  LIST_PREVIEW_LIMIT,
+  ListCapBar,
+  ListDrawer,
+} from "../components/ListDrawer";
 import { money } from "../format";
 import { STOCK_STATUS_LABEL, stockQty, stockStatus } from "../stock";
 
@@ -25,11 +30,13 @@ export default function InventoryPage() {
   const [saleOpen, setSaleOpen] = useState(false);
   const [saleForm, setSaleForm] = useState(emptySale);
   const [busy, setBusy] = useState(false);
+  const [stockDrawerOpen, setStockDrawerOpen] = useState(false);
+  const [salesDrawerOpen, setSalesDrawerOpen] = useState(false);
 
   async function load() {
     const [inv, recent] = await Promise.all([
       api("/inventory"),
-      api("/inventory/sales?limit=12"),
+      api("/inventory/sales?limit=50"),
     ]);
     setRows(inv);
     setSales(recent);
@@ -106,6 +113,101 @@ export default function InventoryPage() {
         return stockQty(b) - stockQty(a);
       });
   }, [rows, filter, q]);
+
+  const previewStock = useMemo(() => {
+    if (q.trim()) return visible;
+    return visible.slice(0, LIST_PREVIEW_LIMIT);
+  }, [visible, q]);
+
+  const previewSales = useMemo(() => sales.slice(0, LIST_PREVIEW_LIMIT), [sales]);
+
+  function renderStockCard(p) {
+    const qty = stockQty(p);
+    const status = stockStatus(p);
+    const pct = Math.min(100, Math.round((qty / maxStock) * 100));
+    return (
+      <article key={p.id} className={`card stock-card status-${status}`}>
+        <div className="stock-card-top">
+          <div>
+            <div className="stock-sku">{p.sku}</div>
+            <h2 className="stock-name">{p.name}</h2>
+            {(p.category || p.unit) && (
+              <p className="muted stock-meta">
+                {[p.category, p.unit || "pcs"].filter(Boolean).join(" · ")}
+              </p>
+            )}
+          </div>
+          <span className={`badge stock-badge stock-${status}`}>
+            {STOCK_STATUS_LABEL[status]}
+          </span>
+        </div>
+
+        <div className="stock-qty-row">
+          <div className="stock-qty">{qty}</div>
+          <div className="stock-qty-label">units available</div>
+        </div>
+
+        <div
+          className="stock-meter"
+          role="img"
+          aria-label={`${qty} of relative max ${maxStock}`}
+        >
+          <div className={`stock-meter-fill stock-${status}`} style={{ width: `${pct}%` }} />
+        </div>
+
+        <div className="stock-card-foot">
+          <div>
+            <span className="muted">Retail</span>
+            <strong>{money(p.active_retail_price)}</strong>
+          </div>
+          <div>
+            <span className="muted">Reorder at</span>
+            <strong>{p.reorder_level ?? "—"}</strong>
+          </div>
+        </div>
+
+        {qty > 0 && (
+          <div className="stock-card-actions">
+            <button type="button" className="btn primary" onClick={() => openSale(p)}>
+              Sell
+            </button>
+          </div>
+        )}
+      </article>
+    );
+  }
+
+  function renderSalesTable(items) {
+    return (
+      <table>
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>SKU</th>
+            <th>Qty</th>
+            <th>Unit</th>
+            <th>Total</th>
+            <th>Left</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((s) => (
+            <tr key={s.id}>
+              <td>{new Date(s.created_at).toLocaleString()}</td>
+              <td>
+                <div>{s.sku}</div>
+                <div className="cell-sub">{s.name}</div>
+              </td>
+              <td>{s.quantity}</td>
+              <td>{money(s.unit_price)}</td>
+              <td>{money(s.line_total)}</td>
+              <td>{s.stock_after}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
 
   function openSale(product) {
     setError("");
@@ -295,6 +397,7 @@ export default function InventoryPage() {
 
       <div className="page-head">
         <div>
+          <span className="page-kicker">Shelf</span>
           <h1>Stock</h1>
         </div>
         <div className="actions-inline">
@@ -382,102 +485,58 @@ export default function InventoryPage() {
           <p className="muted">No items match this filter.</p>
         </div>
       ) : (
-        <div className="stock-board">
-          {visible.map((p) => {
-            const qty = stockQty(p);
-            const status = stockStatus(p);
-            const pct = Math.min(100, Math.round((qty / maxStock) * 100));
-            return (
-              <article key={p.id} className={`card stock-card status-${status}`}>
-                <div className="stock-card-top">
-                  <div>
-                    <div className="stock-sku">{p.sku}</div>
-                    <h2 className="stock-name">{p.name}</h2>
-                    {(p.category || p.unit) && (
-                      <p className="muted stock-meta">
-                        {[p.category, p.unit || "pcs"].filter(Boolean).join(" · ")}
-                      </p>
-                    )}
-                  </div>
-                  <span className={`badge stock-badge stock-${status}`}>
-                    {STOCK_STATUS_LABEL[status]}
-                  </span>
-                </div>
-
-                <div className="stock-qty-row">
-                  <div className="stock-qty">{qty}</div>
-                  <div className="stock-qty-label">units available</div>
-                </div>
-
-                <div
-                  className="stock-meter"
-                  role="img"
-                  aria-label={`${qty} of relative max ${maxStock}`}
-                >
-                  <div className={`stock-meter-fill stock-${status}`} style={{ width: `${pct}%` }} />
-                </div>
-
-                <div className="stock-card-foot">
-                  <div>
-                    <span className="muted">Retail</span>
-                    <strong>{money(p.active_retail_price)}</strong>
-                  </div>
-                  <div>
-                    <span className="muted">Reorder at</span>
-                    <strong>{p.reorder_level ?? "—"}</strong>
-                  </div>
-                </div>
-
-                {qty > 0 && (
-                  <div className="stock-card-actions">
-                    <button type="button" className="btn primary" onClick={() => openSale(p)}>
-                      Sell
-                    </button>
-                  </div>
-                )}
-              </article>
-            );
-          })}
-        </div>
+        <>
+          <div className="stock-board">{previewStock.map(renderStockCard)}</div>
+          {!q.trim() && visible.length > LIST_PREVIEW_LIMIT && (
+            <ListCapBar
+              total={visible.length}
+              shown={previewStock.length}
+              noun="items"
+              onOpen={() => setStockDrawerOpen(true)}
+            />
+          )}
+        </>
       )}
+
+      <ListDrawer
+        open={stockDrawerOpen}
+        onClose={() => setStockDrawerOpen(false)}
+        title="All stock items"
+        subtitle="Use search and filters on the main page, then browse the full list here."
+      >
+        <div className="stock-board">{visible.map(renderStockCard)}</div>
+      </ListDrawer>
 
       <div className="card table-wrap" style={{ marginTop: "1rem" }}>
         <div className="table-head">
           <h2>Recent sales</h2>
-          <span className="muted">{sales.length} shown</span>
+          <span className="muted">{sales.length} recorded</span>
         </div>
         {sales.length === 0 ? (
           <p className="muted empty-state">No sales recorded yet.</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>SKU</th>
-                <th>Qty</th>
-                <th>Unit</th>
-                <th>Total</th>
-                <th>Left</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sales.map((s) => (
-                <tr key={s.id}>
-                  <td>{new Date(s.created_at).toLocaleString()}</td>
-                  <td>
-                    <div>{s.sku}</div>
-                    <div className="cell-sub">{s.name}</div>
-                  </td>
-                  <td>{s.quantity}</td>
-                  <td>{money(s.unit_price)}</td>
-                  <td>{money(s.line_total)}</td>
-                  <td>{s.stock_after}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            {renderSalesTable(previewSales)}
+            {sales.length > LIST_PREVIEW_LIMIT && (
+              <ListCapBar
+                total={sales.length}
+                shown={previewSales.length}
+                noun="sales"
+                onOpen={() => setSalesDrawerOpen(true)}
+              />
+            )}
+          </>
         )}
       </div>
+
+      <ListDrawer
+        open={salesDrawerOpen}
+        onClose={() => setSalesDrawerOpen(false)}
+        title="Recent sales"
+        subtitle="Full sale history loaded from your workspace."
+      >
+        {renderSalesTable(sales)}
+      </ListDrawer>
     </div>
   );
 }

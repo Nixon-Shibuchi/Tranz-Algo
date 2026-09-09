@@ -23,34 +23,41 @@ Tranz-Algo turns import paperwork into **per-item landed cost → suggested reta
 
 In-app screens stay focused on data and actions. This section is the full how-to.
 
+Paperwork lives on **Shipments**. Allocation, suggested retail, and commit live on **True Cost** — the top-level costing studio.
+
+### First visit
+
+1. Open the app. A skippable **Welcome to Tranz-Algo** carousel explains true cost, cost modes, Margin-Guard, and the ledger. It is shown once (stored in the browser); **Skip** or **Get started** goes to sign-in.
+2. **Register** an admin, then **sign in**. There is no shared demo password — each machine creates its own account.
+3. After sign-in, a sidebar (drawer on mobile) is the main navigation. Colour modes **Day / Night / Sienna** sit in the top bar (not on the sign-in screen).
+
 ### Main screens
 
 | Screen | What you do |
 |---|---|
+| **Welcome** | First-visit intro carousel (skippable). Not shown again once dismissed. |
+| **True Cost** | Featured tab. Pick a batch, allocate shipping/duty/VAT, set margin, accept or override suggested retail, then **commit**. |
 | **Dashboard** | Overview of units available, low/out stock, draft vs committed shipments. **Start fresh** clears business data (type `RESET`). |
 | **Products** | Catalogue CRUD (SKU + name required). Optional: weight, reorder level, category, tax profile (under extra fields). |
 | **Shipments** | Create a batch, open it, or delete non-committed batches. |
-| **Shipment detail** | Add lines, save costs, allocate, suggest prices, choose auto/manual retail, commit. |
+| **Shipment detail** | Add lines and **save costs** (FX, shipping, duty, VAT, paperwork source). Then **Open True Cost**. After commit: view ledger and **Margin-Guard** recheck. |
 | **Stock** | Available / low / out board. **Record sale** / **Sell** reduces units (not a full POS). Qty rises on **commit**. Low = at or below reorder level. |
 | **Tax profiles** | Optional duty/VAT % templates. You can still paste duty/VAT totals on a shipment from clearing paperwork. |
 
 ### Day-to-day workflow
 
-1. **Sign in** (register an admin first if needed).
-2. **Add products** (SKU, name; set default weight if using weight allocation).
-3. **Create a shipment** and choose a primary cost mode:
+1. **Add products** (SKU, name; set default weight if using weight allocation).
+2. **Create a shipment** and choose a primary cost mode:
    - **Already-Local** — paste local amounts from shipper/agent (easiest demo).
    - **Auto FX** — foreign unit prices + exchange rate (Fetch FX or manual).
    - **Mixed** — combine modes per line.
-4. **Add items** to the batch (qty, local or foreign unit cost).
-5. **Save costs** — shipping total, optional duty/VAT totals, paperwork source.
-6. **Run allocation** (quantity or weight) — see plain-text landed unit costs (+ comparison line).
-7. **Suggest prices** (profit margin e.g. `0.30` = 30%) — then choose:
-   - **Use these automatically**, or
-   - **Enter prices manually** (suggestions pre-filled).
-8. **Commit batch** — locks the shipment, writes the True-Cost Ledger, increases stock, applies retail prices.
-9. Check **Stock**. Use **Record sale** / **Sell** when units leave the shelf (reduces stock; not a full POS).
-10. Run **Margin-Guard** as needed.
+3. On **shipment detail**, **add items** (qty, local or foreign unit cost) and **save costs** — shipping total, optional duty/VAT totals, paperwork source.
+4. Open **True Cost** (sidebar, dashboard, or **Open True Cost** on the shipment). If several batches exist, pick one from the batch rail.
+5. **Run allocation** (quantity or weight) — see the cost waterfall per unit, plus a comparison if you used the other method.
+6. **Set profit margin** (e.g. `0.30` = 30%) and **suggest prices**, or **enter prices manually**. True Cost shows projected revenue/profit and the **Margin-Guard floor**.
+7. **Commit batch** — locks the shipment, writes the True-Cost Ledger, increases stock, applies retail prices. Suggested retail is based on **this batch’s** landed cost × margin (it does not blend older batches or sales history). Committing a new batch for the same product overwrites that product’s active retail price.
+8. Check **Stock**. Use **Record sale** / **Sell** when units leave the shelf (reduces stock; not a full POS).
+9. Run **Margin-Guard** from shipment detail as needed (recheck against current landed cost and retail).
 
 ### Shipment statuses
 
@@ -62,7 +69,7 @@ In-app screens stay focused on data and actions. This section is the full how-to
 
 ### Demo path (Already-Local)
 
-Example numbers used in testing:
+Example numbers used in testing (enter lines and costs on the shipment, then allocate/price/commit in **True Cost**):
 
 - Products: FAN-001 (5 kg), BLD-002 (3 kg), KTL-003 (1.5 kg)
 - Lines: 10×520, 5×780, 10×260
@@ -201,7 +208,9 @@ If active retail price falls below recomputed landed cost × (1 + safety margin)
 
 Working local MVP (FastAPI + React + SQLite):
 
-- Auth, products, tax profiles, shipments (items, costs, allocate, suggest, commit, ledger)
+- Welcome carousel (first visit), JWT auth, colour modes (Day / Night / Sienna)
+- Products, tax profiles, shipments (items + costs on shipment detail)
+- **True Cost** studio: allocate, suggest or override retail, commit, ledger
 - Dual cost modes + FX fetch/cache/manual
 - Stock board + Record sale
 - Margin-Guard recheck, dashboard, Start fresh
@@ -240,6 +249,7 @@ npm run dev
 ```
 
 - App: http://127.0.0.1:5173  
+- First load opens the **Welcome** carousel; skip or finish it to reach sign-in.
 
 ### Quick demo path
 
@@ -271,7 +281,7 @@ Tranz-Algo/
 │   └── requirements.txt
 ├── frontend/                # React (Vite) admin
 │   ├── public/              # logo assets
-│   └── src/pages/           # dashboard, products, shipments, stock, tax
+│   └── src/pages/           # welcome, login, true-cost, dashboard, products, shipments, stock, tax
 ├── docs/
 │   ├── design/              # ERD, API, formulas, wireframes
 │   └── literature/          # sources + gap statement

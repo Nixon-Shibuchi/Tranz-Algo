@@ -7,9 +7,11 @@ React (Vite) admin dashboard for the working MVP.
 
 ## What’s in the UI
 
-- Login / Register, Dashboard (Start fresh), Products, Shipments + detail workflow
+- Welcome carousel, Login / Register, colour modes
+- True Cost studio (allocate, suggest or override retail, commit)
+- Dashboard (Start fresh), Products, Shipments + detail (lines and costs)
 - Stock board + Record sale, Tax profiles
-- Confirm dialogs; allocation results; suggest auto vs manual retail
+- Confirm dialogs; Margin-Guard on shipment detail
 
 ## Setup
 

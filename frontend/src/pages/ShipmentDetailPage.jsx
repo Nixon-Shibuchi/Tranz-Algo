@@ -4,22 +4,12 @@ import { api } from "../api";
 import { useConfirm } from "../components/ConfirmDialog";
 import { money, modeLabel } from "../format";
 
-function productLabel(products, item) {
-  const product = products.find((p) => p.id === item.product_id);
-  return product ? `${product.sku} — ${product.name}` : `Item #${item.product_id}`;
-}
-
 export default function ShipmentDetailPage() {
   const { id } = useParams();
   const [askConfirm, confirmDialog] = useConfirm();
   const [batch, setBatch] = useState(null);
   const [products, setProducts] = useState([]);
   const [ledger, setLedger] = useState([]);
-  const [comparison, setComparison] = useState(null);
-  const [allocDone, setAllocDone] = useState(false);
-  const [suggestChoiceOpen, setSuggestChoiceOpen] = useState(false);
-  const [priceMode, setPriceMode] = useState(null); // "auto" | "manual" | null
-  const [manualPrices, setManualPrices] = useState({});
   const [alerts, setAlerts] = useState([]);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
@@ -38,8 +28,6 @@ export default function ShipmentDetailPage() {
     vat_total: "",
     paperwork_source: "",
   });
-  const [method, setMethod] = useState("quantity");
-  const [margin, setMargin] = useState("0.30");
 
   async function load() {
     const [b, p] = await Promise.all([api(`/shipments/${id}`), api("/products")]);
@@ -52,9 +40,6 @@ export default function ShipmentDetailPage() {
       vat_total: b.vat_total ?? "",
       paperwork_source: b.paperwork_source ?? "",
     });
-    setMethod(b.allocation_method || "quantity");
-    if (b.profit_margin != null) setMargin(String(b.profit_margin));
-    if (b.items?.some((i) => i.landed_unit_cost != null)) setAllocDone(true);
     try {
       setLedger(await api(`/shipments/${id}/ledger`));
     } catch {
@@ -157,134 +142,6 @@ export default function ShipmentDetailPage() {
     }
   }
 
-  async function runAllocate() {
-    const confirmed = await askConfirm({
-      title: "Run allocation?",
-      message: `Allocate costs using the ${method} method? Existing landed costs will be recalculated.`,
-      confirmLabel: "Yes, allocate",
-    });
-    if (!confirmed) return;
-    setError("");
-    setOk("");
-    setPriceMode(null);
-    setSuggestChoiceOpen(false);
-    try {
-      const res = await api(`/shipments/${id}/allocate`, {
-        method: "POST",
-        body: JSON.stringify({ method, compare: true }),
-      });
-      setComparison(res.comparison);
-      setBatch(res.shipment);
-      setAllocDone(true);
-      setOk("Allocation complete — see results below.");
-      window.setTimeout(() => {
-        document.getElementById("alloc-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 50);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function runSuggest() {
-    const confirmed = await askConfirm({
-      title: "Suggest prices?",
-      message: `Calculate suggested retail prices with profit margin ${margin}?`,
-      confirmLabel: "Yes, suggest",
-    });
-    if (!confirmed) return;
-    setError("");
-    setOk("");
-    try {
-      const b = await api(`/shipments/${id}/suggest-prices`, {
-        method: "POST",
-        body: JSON.stringify({
-          profit_margin: Number(margin),
-          safety_margin: 0.1,
-        }),
-      });
-      setBatch(b);
-      setSuggestChoiceOpen(true);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  function useSuggestedAsRetail() {
-    setPriceMode("auto");
-    setSuggestChoiceOpen(false);
-    setOk("Using suggested retail prices.");
-  }
-
-  function openManualPrices() {
-    const next = {};
-    for (const item of batch.items) {
-      next[item.id] =
-        item.suggested_retail_price != null ? String(item.suggested_retail_price) : "";
-    }
-    setManualPrices(next);
-    setPriceMode("manual");
-    setSuggestChoiceOpen(false);
-    setOk("Enter retail prices below.");
-    window.setTimeout(() => {
-      document.getElementById("manual-prices")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-  }
-
-  async function commit() {
-    if (!batch.items?.some((i) => i.suggested_retail_price != null) && priceMode !== "manual") {
-      setError("Suggest prices first.");
-      return;
-    }
-    if (priceMode === "manual") {
-      const missing = batch.items.filter((i) => {
-        const v = manualPrices[i.id];
-        return v === undefined || v === "" || Number.isNaN(Number(v));
-      });
-      if (missing.length) {
-        setError("Enter a retail price for every line.");
-        return;
-      }
-    }
-    if (priceMode == null) {
-      setError("Choose automatic or manual retail prices.");
-      setSuggestChoiceOpen(true);
-      return;
-    }
-
-    const confirmed = await askConfirm({
-      title: "Commit batch?",
-      message: "Lock this shipment and apply stock and retail prices? This cannot be undone.",
-      confirmLabel: "Yes, commit",
-      danger: true,
-    });
-    if (!confirmed) return;
-    setError("");
-    setOk("");
-    try {
-      const body =
-        priceMode === "manual"
-          ? {
-              accept_suggestions: false,
-              item_price_overrides: batch.items.map((i) => ({
-                item_id: i.id,
-                accepted_retail_price: Number(manualPrices[i.id]),
-              })),
-            }
-          : { accept_suggestions: true, item_price_overrides: [] };
-
-      const b = await api(`/shipments/${id}/commit`, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-      setBatch(b);
-      setLedger(await api(`/shipments/${id}/ledger`));
-      setPriceMode(null);
-      setOk("Batch committed. Stock and retail prices updated.");
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
   async function recheckMargins() {
     const confirmed = await askConfirm({
       title: "Recheck margins?",
@@ -306,59 +163,17 @@ export default function ShipmentDetailPage() {
   if (!batch) return <p className="pad">Loading shipment…</p>;
 
   const locked = batch.status === "committed";
-  const selectedMethod = batch.allocation_method || method;
-  const otherMethod = selectedMethod === "weight" ? "quantity" : "weight";
-  const otherRows = comparison?.[otherMethod];
 
   return (
     <div>
       {confirmDialog}
-
-      {suggestChoiceOpen && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={() => setSuggestChoiceOpen(false)}
-        >
-          <div
-            className="modal-card card wide"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="suggest-choice-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="suggest-choice-title">Suggested retail prices</h2>
-            <ul className="result-list">
-              {batch.items.map((item) => (
-                <li key={item.id}>
-                  <div className="result-title">{productLabel(products, item)}</div>
-                  <div className="result-detail">
-                    Landed unit {money(item.landed_unit_cost)} → suggested retail{" "}
-                    <strong>{money(item.suggested_retail_price)}</strong>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="modal-actions">
-              <button type="button" className="btn primary" onClick={useSuggestedAsRetail}>
-                Use these automatically
-              </button>
-              <button type="button" className="btn" onClick={openManualPrices}>
-                Enter prices manually
-              </button>
-              <button type="button" className="btn" onClick={() => setSuggestChoiceOpen(false)}>
-                Not now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="page-head">
         <div>
           <Link className="back-link" to="/shipments">
             ← Shipments
           </Link>
+          <span className="page-kicker">Shipment batch</span>
           <h1>{batch.reference}</h1>
           <p className="muted">
             <span className="badge">{modeLabel(batch.primary_cost_mode)}</span>{" "}
@@ -583,103 +398,20 @@ export default function ShipmentDetailPage() {
         </form>
       )}
 
-      {!locked && (
-        <div className="card pricing-bar">
-          <h2>Allocation & pricing</h2>
-          <div className="form-grid" style={{ marginBottom: 0 }}>
-            <label>
-              Method
-              <select value={method} onChange={(e) => setMethod(e.target.value)}>
-                <option value="quantity">Quantity</option>
-                <option value="weight">Weight</option>
-              </select>
-            </label>
-            <label>
-              Profit margin
-              <input value={margin} onChange={(e) => setMargin(e.target.value)} />
-            </label>
-            <div className="span-2 pricing-actions">
-              <button type="button" className="btn" onClick={runAllocate}>
-                Run allocation
-              </button>
-              <button type="button" className="btn" onClick={runSuggest}>
-                Suggest prices
-              </button>
-              <button type="button" className="btn primary" onClick={commit}>
-                Commit batch
-              </button>
-            </div>
-          </div>
+      <div className="card sd-handoff">
+        <div>
+          <span className="tc-panel-kicker">Costing engine</span>
+          <h2>Landed cost &amp; pricing</h2>
+          <p className="muted">
+            {locked
+              ? "See the full cost build-up and price ladder for this committed batch."
+              : "Allocate shipping, duty and VAT, then set a safe retail price in the True Cost studio."}
+          </p>
         </div>
-      )}
-
-      {allocDone && batch.items.some((i) => i.landed_unit_cost != null) && (
-        <div className="card notice-card" id="alloc-results">
-          <div>
-            <strong>Allocated · {selectedMethod}</strong>
-            {Array.isArray(otherRows) && otherRows.length > 0 && (
-              <p className="muted">
-                {otherMethod}:{" "}
-                {otherRows
-                  .map((row) => {
-                    const item = batch.items.find((i) => i.id === row.item_id);
-                    const label = item
-                      ? products.find((p) => p.id === item.product_id)?.sku || `#${row.item_id}`
-                      : `#${row.item_id}`;
-                    return `${label} ${money(row.landed_unit_cost)}`;
-                  })
-                  .join(" · ")}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {!locked && priceMode === "auto" && (
-        <div className="card notice-card">
-          <div>
-            <strong>Retail: use suggested prices</strong>
-            <p className="muted">Applied on commit.</p>
-          </div>
-          <button type="button" className="btn" onClick={() => setSuggestChoiceOpen(true)}>
-            Change
-          </button>
-        </div>
-      )}
-
-      {!locked && priceMode === "manual" && (
-        <div className="card result-card" id="manual-prices">
-          <h2>Retail prices</h2>
-          <div className="manual-price-grid">
-            {batch.items.map((item) => (
-              <div className="manual-price-row" key={item.id}>
-                <div>
-                  <div className="result-title">{productLabel(products, item)}</div>
-                  <div className="result-detail">
-                    Landed {money(item.landed_unit_cost)} · suggested{" "}
-                    {money(item.suggested_retail_price)}
-                  </div>
-                </div>
-                <label>
-                  Retail price (ZMW)
-                  <input
-                    required
-                    value={manualPrices[item.id] ?? ""}
-                    onChange={(e) =>
-                      setManualPrices((prev) => ({ ...prev, [item.id]: e.target.value }))
-                    }
-                  />
-                </label>
-              </div>
-            ))}
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn" onClick={() => setSuggestChoiceOpen(true)}>
-              Back to suggestions
-            </button>
-          </div>
-        </div>
-      )}
+        <Link className="btn primary" to={`/true-cost/${batch.id}`}>
+          {locked ? "View true cost" : "Open True Cost"}
+        </Link>
+      </div>
 
       <div className="card">
         <div className="table-head">

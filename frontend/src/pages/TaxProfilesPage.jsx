@@ -106,6 +106,7 @@ export default function TaxProfilesPage() {
       {confirmDialog}
       <div className="page-head">
         <div>
+          <span className="page-kicker">Templates</span>
           <h1>Tax profiles</h1>
         </div>
       </div>

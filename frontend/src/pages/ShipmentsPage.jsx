@@ -2,6 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useConfirm } from "../components/ConfirmDialog";
+import {
+  FormActions,
+  FormField,
+  FormFold,
+  FormPanel,
+  FormSection,
+  ModeCards,
+} from "../components/WorkspaceForm";
 import { modeLabel } from "../format";
 
 export default function ShipmentsPage() {
@@ -89,131 +97,124 @@ export default function ShipmentsPage() {
     }
   }
 
+  const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+  const showFx = form.primary_cost_mode === "auto_fx" || form.primary_cost_mode === "mixed";
+
   return (
     <div>
       {confirmDialog}
       <div className="page-head">
         <div>
+          <span className="page-kicker">Batches</span>
           <h1>Shipments</h1>
         </div>
       </div>
       {error && <p className="error">{error}</p>}
       {ok && <p className="success">{ok}</p>}
 
-      <form className="card form-grid" onSubmit={onCreate}>
-        <h2>New shipment</h2>
-        <label>
-          Reference *
-          <input
-            required
-            placeholder="SHP-2026-001"
-            value={form.reference}
-            onChange={(e) => setForm({ ...form, reference: e.target.value })}
-          />
-        </label>
-        <label>
-          Supplier
-          <input
-            value={form.supplier_name}
-            onChange={(e) => setForm({ ...form, supplier_name: e.target.value })}
-          />
-        </label>
-        <label>
-          Primary mode
-          <select
+      <FormPanel
+        kicker="New batch"
+        title="Create shipment"
+        hint="Start with a reference and cost mode. You will add lines and paperwork totals on the next screen."
+        onSubmit={onCreate}
+      >
+        <FormSection columns={2}>
+          <FormField label="Reference" required id="ship-ref" hint="Your internal batch code.">
+            <input
+              id="ship-ref"
+              required
+              placeholder="SHP-LOC-2026-01"
+              value={form.reference}
+              onChange={set("reference")}
+            />
+          </FormField>
+          <FormField label="Supplier" id="ship-supplier">
+            <input
+              id="ship-supplier"
+              placeholder="Cape Clean Supplies"
+              value={form.supplier_name}
+              onChange={set("supplier_name")}
+            />
+          </FormField>
+        </FormSection>
+
+        <FormSection>
+          <ModeCards
             value={form.primary_cost_mode}
-            onChange={(e) => setForm({ ...form, primary_cost_mode: e.target.value })}
-          >
-            <option value="already_local">Already-Local</option>
-            <option value="auto_fx">Auto FX</option>
-            <option value="mixed">Mixed</option>
-          </select>
-        </label>
-        <label>
-          Foreign currency
-          <input
-            value={form.currency_foreign}
-            onChange={(e) => setForm({ ...form, currency_foreign: e.target.value })}
+            onChange={(mode) => setForm({ ...form, primary_cost_mode: mode })}
           />
-        </label>
-        <label>
-          Local currency
-          <input value="ZMW" readOnly />
-        </label>
+        </FormSection>
 
-        <div className="span-2 actions-inline">
-          <button type="button" className="btn link" onClick={() => setShowMore((v) => !v)}>
-            {showMore ? "Hide extra fields" : "Show extra fields"}
-          </button>
-        </div>
+        <FormSection columns={showFx ? 2 : 1}>
+          {showFx && (
+            <FormField label="Foreign currency" id="ship-fx" hint="Supplier invoice currency.">
+              <input
+                id="ship-fx"
+                placeholder="USD"
+                value={form.currency_foreign}
+                onChange={set("currency_foreign")}
+              />
+            </FormField>
+          )}
+          <FormField label="Local currency" id="ship-local">
+            <input id="ship-local" value="ZMW" readOnly className="readonly" />
+          </FormField>
+        </FormSection>
 
-        {showMore && (
-          <>
-            <label>
-              Supplier invoice #
+        <FormFold
+          open={showMore}
+          onToggle={() => setShowMore((v) => !v)}
+          label={showMore ? "Hide logistics details" : "Logistics and paperwork"}
+          badge="8 fields"
+        >
+          <FormSection columns={2}>
+            <FormField label="Supplier invoice no." id="ship-invoice">
+              <input id="ship-invoice" value={form.invoice_number} onChange={set("invoice_number")} />
+            </FormField>
+            <FormField label="Clearing agent" id="ship-agent">
+              <input id="ship-agent" value={form.clearing_agent} onChange={set("clearing_agent")} />
+            </FormField>
+            <FormField label="Carrier / shipper" id="ship-carrier">
+              <input id="ship-carrier" value={form.carrier_name} onChange={set("carrier_name")} />
+            </FormField>
+            <FormField label="Origin country" id="ship-origin">
+              <input id="ship-origin" value={form.origin_country} onChange={set("origin_country")} />
+            </FormField>
+            <FormField label="Destination" id="ship-dest">
+              <input id="ship-dest" value={form.destination} onChange={set("destination")} />
+            </FormField>
+            <FormField label="Expected arrival" id="ship-eta">
               <input
-                value={form.invoice_number}
-                onChange={(e) => setForm({ ...form, invoice_number: e.target.value })}
-              />
-            </label>
-            <label>
-              Clearing agent
-              <input
-                value={form.clearing_agent}
-                onChange={(e) => setForm({ ...form, clearing_agent: e.target.value })}
-              />
-            </label>
-            <label>
-              Carrier / shipper
-              <input
-                value={form.carrier_name}
-                onChange={(e) => setForm({ ...form, carrier_name: e.target.value })}
-              />
-            </label>
-            <label>
-              Origin country
-              <input
-                value={form.origin_country}
-                onChange={(e) => setForm({ ...form, origin_country: e.target.value })}
-              />
-            </label>
-            <label>
-              Destination
-              <input
-                value={form.destination}
-                onChange={(e) => setForm({ ...form, destination: e.target.value })}
-              />
-            </label>
-            <label>
-              Expected arrival
-              <input
+                id="ship-eta"
                 type="date"
                 value={form.expected_arrival_date}
-                onChange={(e) => setForm({ ...form, expected_arrival_date: e.target.value })}
+                onChange={set("expected_arrival_date")}
               />
-            </label>
-            <label>
-              Received date
+            </FormField>
+            <FormField label="Received date" id="ship-received">
               <input
+                id="ship-received"
                 type="date"
                 value={form.received_date}
-                onChange={(e) => setForm({ ...form, received_date: e.target.value })}
+                onChange={set("received_date")}
               />
-            </label>
-            <label className="span-2">
-              Notes
-              <input
+            </FormField>
+            <FormField label="Notes" id="ship-notes" className="span-2">
+              <textarea
+                id="ship-notes"
+                rows={2}
                 value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                onChange={set("notes")}
+                placeholder="Anything your team should remember about this batch"
               />
-            </label>
-          </>
-        )}
+            </FormField>
+          </FormSection>
+        </FormFold>
 
-        <div className="span-2 actions-inline">
+        <FormActions>
           <button className="btn primary">Create shipment</button>
-        </div>
-      </form>
+        </FormActions>
+      </FormPanel>
 
       <div className="card table-wrap">
         <div className="table-head">
