@@ -2037,6 +2037,14 @@ th {
   margin-top: 0.15rem;
 }
 
+.mono-id {
+  font-family: ui-monospace, "Cascadia Code", "Segoe UI Mono", Consolas, monospace;
+  font-size: 0.85em;
+  font-weight: 650;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

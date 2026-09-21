@@ -11,6 +11,7 @@ import {
   ModeCards,
 } from "../components/WorkspaceForm";
 import { modeLabel } from "../format";
+import { modeNeedsFx } from "../costModes";
 
 export default function ShipmentsPage() {
   const navigate = useNavigate();
@@ -98,7 +99,7 @@ export default function ShipmentsPage() {
   }
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
-  const showFx = form.primary_cost_mode === "auto_fx" || form.primary_cost_mode === "mixed";
+  const showFx = modeNeedsFx(form.primary_cost_mode);
 
   return (
     <div>

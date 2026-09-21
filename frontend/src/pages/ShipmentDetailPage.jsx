@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useConfirm } from "../components/ConfirmDialog";
 import { money, modeLabel } from "../format";
+import { LINE_COST_MODES } from "../costModes";
 
 export default function ShipmentDetailPage() {
   const { id } = useParams();
@@ -249,7 +250,7 @@ export default function ShipmentDetailPage() {
                   <option value="">Select…</option>
                   {products.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.sku} — {p.name}
+                      #{p.id} · {p.sku} — {p.name}
                     </option>
                   ))}
                 </select>
@@ -275,8 +276,11 @@ export default function ShipmentDetailPage() {
                   value={itemForm.line_cost_mode}
                   onChange={(e) => setItemForm({ ...itemForm, line_cost_mode: e.target.value })}
                 >
-                  <option value="already_local">Already-Local</option>
-                  <option value="auto_fx">Auto FX</option>
+                  {LINE_COST_MODES.map((mode) => (
+                    <option key={mode.id} value={mode.id}>
+                      {mode.title}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label>
@@ -332,7 +336,15 @@ export default function ShipmentDetailPage() {
                 const product = products.find((p) => p.id === i.product_id);
                 return (
                   <tr key={i.id}>
-                    <td>{product ? `${product.sku}` : i.product_id}</td>
+                    <td>
+                      {product ? (
+                        <>
+                          <span className="mono-id">#{product.id}</span> {product.sku}
+                        </>
+                      ) : (
+                        i.product_id
+                      )}
+                    </td>
                     <td>{i.quantity}</td>
                     <td>{modeLabel(i.line_cost_mode)}</td>
                     <td>{money(i.local_unit_product_cost)}</td>

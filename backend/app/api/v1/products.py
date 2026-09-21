@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from uuid import uuid4
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
@@ -8,6 +9,17 @@ from app.models import BatchItem, Product, TaxProfile, User
 from app.schemas import ProductCreate, ProductOut, ProductUpdate
 
 router = APIRouter(prefix="/products", tags=["products"])
+
+
+def _unique_auto_sku(db: Session, product_id: int) -> str:
+    """Assign a stable catalogue id like PRD-0007 from the DB primary key."""
+    candidate = f"PRD-{product_id:04d}"
+    clash = db.scalars(
+        select(Product).where(Product.sku == candidate, Product.id != product_id)
+    ).first()
+    if not clash:
+        return candidate
+    return f"PRD-{product_id:04d}-{product_id}"
 
 
 @router.get("", response_model=list[ProductOut])
@@ -24,12 +36,19 @@ def create_product(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    if db.scalars(select(Product).where(Product.sku == payload.sku)).first():
+    data = payload.model_dump()
+    sku = (data.get("sku") or "").strip() or None
+    # Temporary unique value so NOT NULL + UNIQUE hold until we know the DB id
+    data["sku"] = sku or f"TMP-{uuid4().hex[:12].upper()}"
+    if sku and db.scalars(select(Product).where(Product.sku == sku)).first():
         raise HTTPException(status_code=400, detail="SKU already exists")
-    if payload.tax_profile_id and not db.get(TaxProfile, payload.tax_profile_id):
+    if data.get("tax_profile_id") and not db.get(TaxProfile, data["tax_profile_id"]):
         raise HTTPException(status_code=404, detail="Tax profile not found")
-    product = Product(**payload.model_dump())
+    product = Product(**data)
     db.add(product)
+    db.flush()
+    if not sku:
+        product.sku = _unique_auto_sku(db, product.id)
     db.commit()
     db.refresh(product)
     return product

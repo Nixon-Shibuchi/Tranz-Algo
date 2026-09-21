@@ -32,8 +32,9 @@ const empty = {
 };
 
 function toPayload(form) {
+  const sku = form.sku.trim();
   return {
-    sku: form.sku.trim(),
+    sku: sku || null,
     name: form.name.trim(),
     category: form.category || null,
     brand: form.brand || null,
@@ -68,6 +69,7 @@ function ProductTable({ products, onEdit, onDelete }) {
     <table>
       <thead>
         <tr>
+          <th>ID</th>
           <th>SKU</th>
           <th>Name</th>
           <th>Unit</th>
@@ -80,6 +82,9 @@ function ProductTable({ products, onEdit, onDelete }) {
       <tbody>
         {products.map((p) => (
           <tr key={p.id}>
+            <td>
+              <span className="mono-id">#{p.id}</span>
+            </td>
             <td>{p.sku}</td>
             <td>
               <div>{p.name}</div>
@@ -135,6 +140,7 @@ export default function ProductsPage() {
       (p) =>
         p.sku.toLowerCase().includes(needle) ||
         p.name.toLowerCase().includes(needle) ||
+        String(p.id).includes(needle) ||
         (p.category || "").toLowerCase().includes(needle) ||
         (p.origin_country || "").toLowerCase().includes(needle)
     );
@@ -167,12 +173,14 @@ export default function ProductsPage() {
       editingId
         ? {
             title: "Update product?",
-            message: `Save changes to ${form.sku || "this product"}?`,
+            message: `Save changes to ${form.name || form.sku || "this product"}?`,
             confirmLabel: "Yes, update",
           }
         : {
             title: "Create product?",
-            message: `Add ${form.sku || "this product"} to the catalogue?`,
+            message: `Add ${form.name || "this product"} to the catalogue${
+              form.sku.trim() ? ` as ${form.sku.trim()}` : " (SKU will be auto-assigned)"
+            }?`,
             confirmLabel: "Yes, create",
           }
     );
@@ -188,11 +196,11 @@ export default function ProductsPage() {
         });
         setOk("Product updated.");
       } else {
-        await api("/products", {
+        const created = await api("/products", {
           method: "POST",
           body: JSON.stringify(payload),
         });
-        setOk("Product created.");
+        setOk(`Product created as ${created.sku} (#${created.id}).`);
       }
       resetForm();
       await load();
@@ -248,12 +256,21 @@ export default function ProductsPage() {
       <FormPanel
         kicker={editingId ? "Editing" : "Catalogue entry"}
         title={editingId ? "Edit product" : "Add product"}
-        hint="SKU and name are required. Weight helps when you allocate a shipment by weight in True Cost."
+        hint="Name is required. Leave SKU blank to auto-assign an ID like PRD-0007."
         onSubmit={onSubmit}
       >
         <FormSection columns={2}>
-          <FormField label="SKU" required id="product-sku" hint="Unique code on invoices and shelf labels.">
-            <input id="product-sku" required value={form.sku} onChange={set("sku")} placeholder="SOAP-LAV" />
+          <FormField
+            label="SKU"
+            id="product-sku"
+            hint={editingId ? "Unique catalogue code." : "Optional — auto PRD-000N if blank."}
+          >
+            <input
+              id="product-sku"
+              value={form.sku}
+              onChange={set("sku")}
+              placeholder={editingId ? "SOAP-LAV" : "Auto if blank"}
+            />
           </FormField>
           <FormField label="Display name" required id="product-name">
             <input

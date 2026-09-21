@@ -1,44 +1,20 @@
 from datetime import datetime, timezone
 
-import httpx
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.models import FxRateCache
+from app.services.strategies.fx_providers import build_fx_provider_chain
 
 
 def fetch_remote_rate(base: str, quote: str) -> tuple[float, str]:
-    """Try Frankfurter first; fall back to open.er-api.com (better ZMW coverage)."""
+    """Delegate to the FX provider chain (Chain of Responsibility)."""
     base = base.upper()
     quote = quote.upper()
-    if base == quote:
-        return 1.0, "identity"
-
-    # Frankfurter (ECB) — may not include ZMW
     try:
-        url = f"{settings.fx_api_base.rstrip('/')}/latest"
-        with httpx.Client(timeout=8.0) as client:
-            resp = client.get(url, params={"from": base, "to": quote})
-            if resp.status_code == 200:
-                data = resp.json()
-                if quote in data.get("rates", {}):
-                    return float(data["rates"][quote]), "frankfurter"
-    except Exception:
-        pass
-
-    # open.er-api.com free endpoint
-    try:
-        with httpx.Client(timeout=8.0) as client:
-            resp = client.get(f"https://open.er-api.com/v6/latest/{base}")
-            resp.raise_for_status()
-            data = resp.json()
-            if data.get("result") == "success" and quote in data.get("rates", {}):
-                return float(data["rates"][quote]), "open_er_api"
+        return build_fx_provider_chain().fetch(base, quote)
     except Exception as exc:
         raise RuntimeError(f"Unable to fetch FX rate {base}->{quote}: {exc}") from exc
-
-    raise RuntimeError(f"Rate {base}->{quote} not available from free FX providers")
 
 
 def get_rate(

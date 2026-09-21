@@ -137,7 +137,9 @@ export default function DashboardPage() {
               {stockSnap.top.map((p) => (
                 <li key={p.id}>
                   <div>
-                    <strong>{p.sku}</strong>
+                    <strong>
+                      <span className="mono-id">#{p.id}</span> {p.sku}
+                    </strong>
                     <div className="muted">{p.name}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -173,7 +175,9 @@ export default function DashboardPage() {
           {stockSnap.inStock.map((p) => (
             <li key={p.id}>
               <div>
-                <strong>{p.sku}</strong>
+                <strong>
+                  <span className="mono-id">#{p.id}</span> {p.sku}
+                </strong>
                 <div className="muted">{p.name}</div>
               </div>
               <div style={{ textAlign: "right" }}>

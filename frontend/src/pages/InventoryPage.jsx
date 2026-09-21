@@ -102,6 +102,7 @@ export default function InventoryPage() {
         return (
           p.sku.toLowerCase().includes(needle) ||
           p.name.toLowerCase().includes(needle) ||
+          String(p.id).includes(needle) ||
           (p.category || "").toLowerCase().includes(needle)
         );
       })
@@ -129,7 +130,9 @@ export default function InventoryPage() {
       <article key={p.id} className={`card stock-card status-${status}`}>
         <div className="stock-card-top">
           <div>
-            <div className="stock-sku">{p.sku}</div>
+            <div className="stock-sku">
+              <span className="mono-id">#{p.id}</span> {p.sku}
+            </div>
             <h2 className="stock-name">{p.name}</h2>
             {(p.category || p.unit) && (
               <p className="muted stock-meta">
@@ -326,7 +329,7 @@ export default function InventoryPage() {
                     <option value="">Select…</option>
                     {sellable.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.sku} — {p.name} ({stockQty(p)} left)
+                        #{p.id} · {p.sku} — {p.name} ({stockQty(p)} left)
                       </option>
                     ))}
                   </select>

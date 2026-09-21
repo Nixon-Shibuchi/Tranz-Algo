@@ -1,3 +1,5 @@
+import { COST_MODES } from "../costModes";
+
 export function FormPanel({ kicker, title, hint, children, onSubmit }) {
   return (
     <form className="card workspace-form" onSubmit={onSubmit}>
@@ -82,31 +84,10 @@ export function FormActions({ children }) {
   return <div className="form-actions span-2">{children}</div>;
 }
 
-const MODES = [
-  {
-    id: "already_local",
-    title: "Already-Local",
-    hint: "Agent or shipper paperwork already in ZMW.",
-    icon: "K",
-  },
-  {
-    id: "auto_fx",
-    title: "Auto FX",
-    hint: "Supplier invoice still in foreign currency.",
-    icon: "$",
-  },
-  {
-    id: "mixed",
-    title: "Mixed",
-    hint: "Combine local charges with foreign lines.",
-    icon: "±",
-  },
-];
-
 export function ModeCards({ value, onChange, name = "primary_cost_mode" }) {
   return (
     <div className="mode-cards span-2" role="radiogroup" aria-label="Primary cost mode">
-      {MODES.map((mode) => {
+      {COST_MODES.map((mode) => {
         const active = value === mode.id;
         return (
           <label

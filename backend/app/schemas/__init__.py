@@ -57,7 +57,7 @@ class TaxProfileOut(ORMModel):
 
 # Products
 class ProductCreate(BaseModel):
-    sku: str
+    sku: str | None = None
     name: str
     description: str | None = None
     category: str | None = None

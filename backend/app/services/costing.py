@@ -1,11 +1,22 @@
-from decimal import Decimal, ROUND_HALF_UP
+"""Landed-cost domain engine (Template Method over Strategy + Factory).
 
+Public functions keep the same signatures so API and tests stay stable while
+allocation and line-cost modes are open for extension (OCP / Protected Variations).
+"""
 
-TWOPLACES = Decimal("0.01")
+from app.services.costing_math import money
+from app.services.strategies.allocation import get_allocation_strategy
+from app.services.strategies.line_cost import get_line_cost_strategy
 
-
-def money(value: float | Decimal) -> float:
-    return float(Decimal(str(value)).quantize(TWOPLACES, rounding=ROUND_HALF_UP))
+__all__ = [
+    "money",
+    "allocate_shares",
+    "local_unit_cost",
+    "compute_line_taxes",
+    "compute_landed_for_method",
+    "suggest_prices",
+    "margin_guard_alert",
+]
 
 
 def allocate_shares(
@@ -27,16 +38,9 @@ def allocate_shares(
 
 
 def local_unit_cost(item: dict, exchange_rate: float | None) -> float:
-    mode = item.get("line_cost_mode", "already_local")
-    if mode == "auto_fx":
-        if item.get("foreign_unit_price") is None:
-            raise ValueError("Auto FX line missing foreign_unit_price")
-        if exchange_rate is None:
-            raise ValueError("Exchange rate required for Auto FX lines")
-        return money(float(item["foreign_unit_price"]) * float(exchange_rate))
-    if item.get("local_unit_product_cost") is None:
-        raise ValueError("Already-Local line missing local_unit_product_cost")
-    return money(float(item["local_unit_product_cost"]))
+    """Facade over LineCostStrategy factory (keeps call sites simple)."""
+    strategy = get_line_cost_strategy(item.get("line_cost_mode"))
+    return strategy.unit_cost(item, exchange_rate)
 
 
 def compute_line_taxes(
@@ -60,7 +64,10 @@ def compute_landed_for_method(
     tax_rates_by_item: dict[int, tuple[float, float]],
 ) -> list[dict]:
     """
-    items: dicts with id, quantity, weight_kg, line_cost_mode, foreign_unit_price, local_unit_product_cost
+    Template Method: prepare lines → Strategy basis → allocate shares → assemble.
+
+    items: dicts with id, quantity, weight_kg, line_cost_mode, foreign_unit_price,
+           local_unit_product_cost
     tax_rates_by_item: item_id -> (duty_rate, vat_rate); used when batch totals are None
     """
     prepared = []
@@ -81,16 +88,8 @@ def compute_landed_for_method(
             }
         )
 
-    if method == "weight":
-        if any(p["weight"] <= 0 for p in prepared):
-            raise ValueError("Weight allocation requires weight_kg > 0 on every line")
-        basis = [p["weight"] for p in prepared]
-    elif method == "quantity":
-        basis = [p["quantity"] for p in prepared]
-    elif method == "value":
-        basis = [p["line_product"] for p in prepared]
-    else:
-        raise ValueError("method must be weight, quantity, or value")
+    strategy = get_allocation_strategy(method)
+    basis = strategy.basis(prepared)
 
     ship_shares = allocate_shares(basis, float(shipping_total or 0))
 

@@ -23,13 +23,4 @@ export function percent(n) {
   return `${(v * 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}%`;
 }
 
-const MODE_LABELS = {
-  already_local: "Already-Local",
-  auto_fx: "Auto FX",
-  mixed: "Mixed",
-};
-
-export function modeLabel(mode) {
-  if (!mode) return "—";
-  return MODE_LABELS[mode] || String(mode).replace(/_/g, " ");
-}
+export { modeLabel } from "./costModes";
