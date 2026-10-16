@@ -12,7 +12,6 @@ __all__ = [
     "money",
     "allocate_shares",
     "local_unit_cost",
-    "compute_line_taxes",
     "compute_landed_for_method",
     "suggest_prices",
     "margin_guard_alert",
@@ -43,16 +42,6 @@ def local_unit_cost(item: dict, exchange_rate: float | None) -> float:
     return strategy.unit_cost(item, exchange_rate)
 
 
-def compute_line_taxes(
-    product_line_value: float,
-    duty_rate: float | None,
-    vat_rate: float | None,
-) -> tuple[float, float]:
-    duty = money(product_line_value * float(duty_rate or 0))
-    vat = money((product_line_value + duty) * float(vat_rate or 0))
-    return duty, vat
-
-
 def compute_landed_for_method(
     items: list[dict],
     *,
@@ -61,14 +50,14 @@ def compute_landed_for_method(
     exchange_rate: float | None,
     batch_duty_total: float | None,
     batch_vat_total: float | None,
-    tax_rates_by_item: dict[int, tuple[float, float]],
 ) -> list[dict]:
     """
     Template Method: prepare lines → Strategy basis → allocate shares → assemble.
 
     items: dicts with id, quantity, weight_kg, line_cost_mode, foreign_unit_price,
            local_unit_product_cost
-    tax_rates_by_item: item_id -> (duty_rate, vat_rate); used when batch totals are None
+    Duty/VAT come from shipment paperwork totals and are split by the same method
+    as shipping. Missing totals are treated as zero.
     """
     prepared = []
     for item in items:
@@ -92,23 +81,13 @@ def compute_landed_for_method(
     basis = strategy.basis(prepared)
 
     ship_shares = allocate_shares(basis, float(shipping_total or 0))
-
-    use_batch_tax = batch_duty_total is not None or batch_vat_total is not None
-    duty_shares = (
-        allocate_shares(basis, float(batch_duty_total or 0)) if use_batch_tax else None
-    )
-    vat_shares = (
-        allocate_shares(basis, float(batch_vat_total or 0)) if use_batch_tax else None
-    )
+    duty_shares = allocate_shares(basis, float(batch_duty_total or 0))
+    vat_shares = allocate_shares(basis, float(batch_vat_total or 0))
 
     results = []
     for idx, p in enumerate(prepared):
-        if use_batch_tax:
-            duty = duty_shares[idx]
-            vat = vat_shares[idx]
-        else:
-            duty_rate, vat_rate = tax_rates_by_item.get(p["id"], (0.0, 0.0))
-            duty, vat = compute_line_taxes(p["line_product"], duty_rate, vat_rate)
+        duty = duty_shares[idx]
+        vat = vat_shares[idx]
         line_landed = money(p["line_product"] + ship_shares[idx] + duty + vat)
         unit_landed = money(line_landed / p["quantity"])
         results.append(

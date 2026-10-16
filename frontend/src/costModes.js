@@ -27,7 +27,12 @@ export const COST_MODES = [
   },
 ];
 
-export const LINE_COST_MODES = COST_MODES.filter((m) => m.id !== "mixed");
+/** Modes shown in the UI (Mixed kept in COST_MODES for labels/compat, hidden for now). */
+export const PRIMARY_COST_MODES = COST_MODES.filter((m) => m.id !== "mixed");
+export const LINE_COST_MODES = PRIMARY_COST_MODES;
+
+/** Starter FX before Fetch FX when no last-fetched cache exists (demo default). */
+export const DEFAULT_STARTER_FX_RATE = 20;
 
 const BY_ID = Object.fromEntries(COST_MODES.map((m) => [m.id, m]));
 

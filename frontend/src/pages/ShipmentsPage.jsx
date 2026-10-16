@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { useConfirm } from "../components/ConfirmDialog";
+import CsvImportButton from "../components/CsvImportButton";
 import {
   FormActions,
   FormField,
@@ -10,6 +11,8 @@ import {
   FormSection,
   ModeCards,
 } from "../components/WorkspaceForm";
+import { mapShipmentLineRows, parseFullShipmentCsv } from "../csvImport";
+import LoadingState from "../components/LoadingState";
 import { modeLabel } from "../format";
 import { modeNeedsFx } from "../costModes";
 
@@ -17,6 +20,7 @@ export default function ShipmentsPage() {
   const navigate = useNavigate();
   const [askConfirm, confirmDialog] = useConfirm();
   const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showMore, setShowMore] = useState(false);
   const [form, setForm] = useState({
     reference: "",
@@ -35,13 +39,22 @@ export default function ShipmentsPage() {
   });
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
+  const [importing, setImporting] = useState(false);
 
-  async function load() {
-    setRows(await api("/shipments"));
+  async function load({ quiet = false } = {}) {
+    if (!quiet) setLoading(true);
+    try {
+      setRows(await api("/shipments"));
+    } finally {
+      if (!quiet) setLoading(false);
+    }
   }
 
   useEffect(() => {
-    load().catch((e) => setError(e.message));
+    load().catch((e) => {
+      setError(e.message);
+      setLoading(false);
+    });
   }, []);
 
   async function onCreate(e) {
@@ -92,14 +105,156 @@ export default function ShipmentsPage() {
     try {
       await api(`/shipments/${r.id}`, { method: "DELETE" });
       setOk("Shipment deleted.");
-      await load();
+      await load({ quiet: true });
     } catch (err) {
       setError(err.message);
     }
   }
 
+  async function importFullShipmentCsv(text) {
+    setError("");
+    setOk("");
+    if (!text.trim()) {
+      setError("Could not read that CSV file.");
+      return;
+    }
+    const parsed = parseFullShipmentCsv(text);
+    if (parsed.errors.length && !parsed.header?.reference) {
+      setError(parsed.errors[0]);
+      return;
+    }
+    let products;
+    try {
+      products = await api("/products");
+    } catch (err) {
+      setError(err.message);
+      return;
+    }
+    const lineDefault =
+      parsed.header.primary_cost_mode === "auto_fx" ? "auto_fx" : "already_local";
+    const { ready: lines, errors: lineErrors } = mapShipmentLineRows(
+      parsed.linesText,
+      products,
+      lineDefault
+    );
+    const allErrors = [...parsed.errors, ...lineErrors];
+    if (!lines.length) {
+      setError(allErrors[0] || "No valid lines in shipment CSV.");
+      return;
+    }
+    const confirmed = await askConfirm({
+      title: `Import shipment ${parsed.header.reference}?`,
+      message: `Creates the batch, saves costs, and adds ${lines.length} line(s). SKUs must already exist under Products.${
+        allErrors.length ? ` ${allErrors.length} warning(s).` : ""
+      }`,
+      confirmLabel: "Yes, import",
+    });
+    if (!confirmed) return;
+
+    setImporting(true);
+    try {
+      const created = await api("/shipments", {
+        method: "POST",
+        body: JSON.stringify(parsed.header),
+      });
+      const c = parsed.costs || {};
+      if (
+        c.exchange_rate != null ||
+        c.shipping_total != null ||
+        c.duty_total != null ||
+        c.vat_total != null ||
+        c.paperwork_source
+      ) {
+        await api(`/shipments/${created.id}/costs`, {
+          method: "PUT",
+          body: JSON.stringify({
+            exchange_rate: c.exchange_rate,
+            exchange_rate_source: c.exchange_rate != null ? "manual" : null,
+            shipping_total: c.shipping_total,
+            duty_total: c.duty_total,
+            vat_total: c.vat_total,
+            paperwork_source: c.paperwork_source,
+          }),
+        });
+      }
+      const fail = [...allErrors];
+      let okLines = 0;
+      for (const row of lines) {
+        const { __row, __sku, ...payload } = row;
+        try {
+          await api(`/shipments/${created.id}/items`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          okLines += 1;
+        } catch (err) {
+          fail.push(`Line ${__sku}: ${err.message}`);
+        }
+      }
+      setOk(
+        `Imported ${created.reference} with ${okLines} line(s). Open True Cost to allocate.`
+      );
+      if (fail.length) setError(fail.slice(0, 4).join(" · "));
+      await load({ quiet: true });
+      navigate(`/shipments/${created.id}`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function clearDrafts() {
+    const drafts = rows.filter((r) => r.status === "draft" || r.status === "costed");
+    if (!drafts.length) {
+      setOk("No draft or costed shipments to clear.");
+      return;
+    }
+    const confirmed = await askConfirm({
+      title: `Clear ${drafts.length} draft shipment(s)?`,
+      message:
+        "Deletes unfinished batches (draft / costed), including CSV imports that were never committed. Committed shipments stay.",
+      confirmLabel: "Yes, clear drafts",
+      danger: true,
+    });
+    if (!confirmed) return;
+    setError("");
+    setOk("");
+    const fail = [];
+    let okCount = 0;
+    for (const r of drafts) {
+      try {
+        await api(`/shipments/${r.id}`, { method: "DELETE" });
+        okCount += 1;
+      } catch (err) {
+        fail.push(`${r.reference}: ${err.message}`);
+      }
+    }
+    await load({ quiet: true });
+    if (okCount) setOk(`Cleared ${okCount} draft shipment(s).`);
+    if (fail.length) setError(fail.slice(0, 3).join(" · "));
+  }
+
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   const showFx = modeNeedsFx(form.primary_cost_mode);
+  const draftCount = rows.filter((r) => r.status === "draft" || r.status === "costed").length;
+
+  if (loading) {
+    return (
+      <div>
+        <div className="page-head">
+          <div>
+            <span className="page-kicker">Batches</span>
+            <h1>Shipments</h1>
+          </div>
+        </div>
+        <LoadingState
+          label="Loading shipments"
+          tips={["Fetching batches…", "Checking draft and committed status…"]}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -109,14 +264,37 @@ export default function ShipmentsPage() {
           <span className="page-kicker">Batches</span>
           <h1>Shipments</h1>
         </div>
+        <div className="page-head-actions">
+          <button
+            type="button"
+            className="btn ghost"
+            disabled={!draftCount}
+            onClick={clearDrafts}
+            title="Delete draft and costed shipments (not committed)"
+          >
+            Clear drafts{draftCount ? ` (${draftCount})` : ""}
+          </button>
+          <CsvImportButton
+            label="Import shipment CSV"
+            hint="Meta field,value rows + sku line table. Samples in docs/scenarios/samples/"
+            busy={importing}
+            onText={importFullShipmentCsv}
+          />
+        </div>
       </div>
+      {importing && (
+        <LoadingState
+          label="Importing"
+          tips={["Creating shipment and lines…", "Remote database can take a moment…"]}
+        />
+      )}
       {error && <p className="error">{error}</p>}
       {ok && <p className="success">{ok}</p>}
 
       <FormPanel
         kicker="New batch"
         title="Create shipment"
-        hint="Start with a reference and cost mode. You will add lines and paperwork totals on the next screen."
+        hint="Pick the cost mode once here (Already-Local or Auto FX). Lines and CSV imports on the next screen follow that mode."
         onSubmit={onCreate}
       >
         <FormSection columns={2}>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { useConfirm } from "../components/ConfirmDialog";
+import CsvImportButton from "../components/CsvImportButton";
 import {
   FormActions,
   FormField,
@@ -14,6 +15,8 @@ import {
   ListDrawer,
   ListSearch,
 } from "../components/ListDrawer";
+import LoadingState from "../components/LoadingState";
+import { mapProductRows } from "../csvImport";
 import { money } from "../format";
 import { STOCK_STATUS_SHORT, stockStatus } from "../stock";
 
@@ -27,7 +30,6 @@ const empty = {
   origin_country: "",
   default_weight_kg: "",
   reorder_level: "",
-  tax_profile_id: "",
   description: "",
 };
 
@@ -44,7 +46,6 @@ function toPayload(form) {
     description: form.description || null,
     default_weight_kg: form.default_weight_kg ? Number(form.default_weight_kg) : null,
     reorder_level: form.reorder_level ? Number(form.reorder_level) : null,
-    tax_profile_id: form.tax_profile_id ? Number(form.tax_profile_id) : null,
   };
 }
 
@@ -59,7 +60,6 @@ function fromProduct(p) {
     origin_country: p.origin_country || "",
     default_weight_kg: p.default_weight_kg ?? "",
     reorder_level: p.reorder_level ?? "",
-    tax_profile_id: p.tax_profile_id ?? "",
     description: p.description || "",
   };
 }
@@ -123,7 +123,6 @@ function ProductTable({ products, onEdit, onDelete }) {
 export default function ProductsPage() {
   const [askConfirm, confirmDialog] = useConfirm();
   const [products, setProducts] = useState([]);
-  const [profiles, setProfiles] = useState([]);
   const [form, setForm] = useState(empty);
   const [editingId, setEditingId] = useState(null);
   const [showMore, setShowMore] = useState(false);
@@ -131,6 +130,8 @@ export default function ProductsPage() {
   const [ok, setOk] = useState("");
   const [listQ, setListQ] = useState("");
   const [listDrawerOpen, setListDrawerOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
 
   const filteredProducts = useMemo(() => {
     const needle = listQ.trim().toLowerCase();
@@ -151,14 +152,20 @@ export default function ProductsPage() {
     return filteredProducts.slice(0, LIST_PREVIEW_LIMIT);
   }, [filteredProducts, listQ]);
 
-  async function load() {
-    const [p, t] = await Promise.all([api("/products"), api("/tax-profiles")]);
-    setProducts(p);
-    setProfiles(t);
+  async function load({ quiet = false } = {}) {
+    if (!quiet) setLoading(true);
+    try {
+      setProducts(await api("/products"));
+    } finally {
+      if (!quiet) setLoading(false);
+    }
   }
 
   useEffect(() => {
-    load().catch((e) => setError(e.message));
+    load().catch((e) => {
+      setError(e.message);
+      setLoading(false);
+    });
   }, []);
 
   function resetForm() {
@@ -203,7 +210,7 @@ export default function ProductsPage() {
         setOk(`Product created as ${created.sku} (#${created.id}).`);
       }
       resetForm();
-      await load();
+      await load({ quiet: true });
     } catch (err) {
       setError(err.message);
     }
@@ -232,13 +239,78 @@ export default function ProductsPage() {
       await api(`/products/${p.id}`, { method: "DELETE" });
       if (editingId === p.id) resetForm();
       setOk("Product deleted.");
-      await load();
+      await load({ quiet: true });
     } catch (err) {
       setError(err.message);
     }
   }
 
+  async function importProductsCsv(text) {
+    setError("");
+    setOk("");
+    if (!text.trim()) {
+      setError("Could not read that CSV file.");
+      return;
+    }
+    const { ready, errors } = mapProductRows(text);
+    if (!ready.length) {
+      setError(
+        errors[0] ||
+          "No product rows found. Need a header row with at least name (and optional sku, weight)."
+      );
+      return;
+    }
+    const preview = ready
+      .slice(0, 5)
+      .map((r) => `${r.sku || "(auto SKU)"} — ${r.name}`)
+      .join("; ");
+    const more = ready.length > 5 ? ` … +${ready.length - 5} more` : "";
+    const warn = errors.length ? ` ${errors.length} row(s) will be skipped.` : "";
+    const confirmed = await askConfirm({
+      title: `Import ${ready.length} product(s)?`,
+      message: `${preview}${more}.${warn}`,
+      confirmLabel: "Yes, import",
+    });
+    if (!confirmed) return;
+    setImporting(true);
+    let okCount = 0;
+    const fail = [...errors];
+    try {
+      for (const row of ready) {
+        const { __row, ...payload } = row;
+        try {
+          await api("/products", { method: "POST", body: JSON.stringify(payload) });
+          okCount += 1;
+        } catch (err) {
+          fail.push(`Row ${__row}: ${err.message}`);
+        }
+      }
+      await load({ quiet: true });
+      if (okCount) setOk(`Imported ${okCount} product(s) from CSV.`);
+      if (fail.length) setError(fail.slice(0, 4).join(" · "));
+    } finally {
+      setImporting(false);
+    }
+  }
+
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
+
+  if (loading) {
+    return (
+      <div>
+        <div className="page-head">
+          <div>
+            <span className="page-kicker">Catalogue</span>
+            <h1>Products</h1>
+          </div>
+        </div>
+        <LoadingState
+          label="Loading products"
+          tips={["Fetching the catalogue…", "Sorting SKUs…"]}
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -248,8 +320,20 @@ export default function ProductsPage() {
           <span className="page-kicker">Catalogue</span>
           <h1>Products</h1>
         </div>
+        <CsvImportButton
+          label="Import CSV"
+          hint="Columns: name, sku (optional), weight, unit, reorder_level, category…"
+          busy={importing}
+          onText={importProductsCsv}
+        />
       </div>
 
+      {importing && (
+        <LoadingState
+          label="Importing"
+          tips={["Saving products from CSV…", "Remote database can take a moment…"]}
+        />
+      )}
       {error && <p className="error">{error}</p>}
       {ok && <p className="success">{ok}</p>}
 
@@ -317,7 +401,7 @@ export default function ProductsPage() {
           open={showMore}
           onToggle={() => setShowMore((v) => !v)}
           label={showMore ? "Hide optional details" : "Optional details"}
-          badge="7 fields"
+          badge="6 fields"
         >
           <FormSection columns={2}>
             <FormField label="Category" id="product-category">
@@ -338,16 +422,6 @@ export default function ProductsPage() {
                 value={form.origin_country}
                 onChange={set("origin_country")}
               />
-            </FormField>
-            <FormField label="Tax profile" id="product-tax" hint="Optional duty/VAT template.">
-              <select id="product-tax" value={form.tax_profile_id} onChange={set("tax_profile_id")}>
-                <option value="">None</option>
-                {profiles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
             </FormField>
             <FormField label="Barcode" id="product-barcode">
               <input id="product-barcode" value={form.barcode} onChange={set("barcode")} placeholder="Optional" />

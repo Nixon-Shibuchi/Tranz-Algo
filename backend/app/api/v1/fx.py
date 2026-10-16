@@ -15,13 +15,16 @@ def get_rate(
     base: str = Query(..., min_length=3, max_length=3),
     quote: str = Query("ZMW", min_length=3, max_length=3),
     prefer_cache: bool = False,
+    cache_only: bool = False,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
     try:
         rate, source, fetched_at = fx_service.get_rate(
-            db, base, quote, prefer_cache=prefer_cache
+            db, base, quote, prefer_cache=prefer_cache, cache_only=cache_only
         )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return FxRateOut(

@@ -6,6 +6,7 @@ import {
   ListCapBar,
   ListDrawer,
 } from "../components/ListDrawer";
+import LoadingState from "../components/LoadingState";
 import { STOCK_STATUS_SHORT, stockStatus } from "../stock";
 
 export default function DashboardPage() {
@@ -17,15 +18,24 @@ export default function DashboardPage() {
   const [confirmText, setConfirmText] = useState("");
   const [busy, setBusy] = useState(false);
   const [stockDrawerOpen, setStockDrawerOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  async function load() {
-    const [s, inv] = await Promise.all([api("/reports/summary"), api("/inventory")]);
-    setSummary(s);
-    setInventory(inv);
+  async function load({ quiet = false } = {}) {
+    if (!quiet) setLoading(true);
+    try {
+      const [s, inv] = await Promise.all([api("/reports/summary"), api("/inventory")]);
+      setSummary(s);
+      setInventory(inv);
+    } finally {
+      if (!quiet) setLoading(false);
+    }
   }
 
   useEffect(() => {
-    load().catch((e) => setError(e.message));
+    load().catch((e) => {
+      setError(e.message);
+      setLoading(false);
+    });
   }, []);
 
   const stockSnap = useMemo(() => {
@@ -68,12 +78,29 @@ export default function DashboardPage() {
       setOk(res.message || "Data cleared.");
       setConfirmOpen(false);
       setConfirmText("");
-      await load();
+      await load({ quiet: true });
     } catch (err) {
       setError(err.message);
     } finally {
       setBusy(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <div className="page-head">
+          <div>
+            <span className="page-kicker">Overview</span>
+            <h1>Dashboard</h1>
+          </div>
+        </div>
+        <LoadingState
+          label="Loading dashboard"
+          tips={["Reading stock levels…", "Checking shipment status…"]}
+        />
+      </div>
+    );
   }
 
   return (
@@ -204,7 +231,7 @@ export default function DashboardPage() {
           >
             <h2 id="reset-title">Confirm start fresh</h2>
             <p>
-              This permanently clears all products, shipments, tax profiles, and ledgers. Your
+              This permanently clears all products, shipments, and ledgers. Your
               login stays.
             </p>
             <p className="muted">Type <strong>RESET</strong> to continue.</p>

@@ -1,0 +1,15 @@
+field,value
+reference,SHP-DEMO-LOCAL-ZMW
+mode,already_local
+supplier,SA Wholesale (Johannesburg)
+notes,DEMO A — Already-Local (ZMW paperwork only). No Fetch FX.
+shipping,5000
+duty,1000
+vat,1500
+paperwork,Agent invoice AG-100 / road pack RC-441
+sku,qty,local_unit
+RICE-5,20,95
+SUGAR-1,30,32
+OIL-2L,10,85
+TEA-500,24,45
+SOAP-BAR,16,18

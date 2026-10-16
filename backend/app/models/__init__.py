@@ -35,19 +35,6 @@ class User(Base):
     batches: Mapped[list["ShipmentBatch"]] = relationship(back_populates="creator")
 
 
-class TaxProfile(Base):
-    __tablename__ = "tax_profiles"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(120), unique=True)
-    duty_rate: Mapped[float] = mapped_column(Numeric(8, 4), default=0)
-    vat_rate: Mapped[float] = mapped_column(Numeric(8, 4), default=0)
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-
-    products: Mapped[list["Product"]] = relationship(back_populates="tax_profile")
-
-
 class Product(Base):
     __tablename__ = "products"
 
@@ -62,7 +49,6 @@ class Product(Base):
     origin_country: Mapped[str | None] = mapped_column(String(80), nullable=True)
     default_weight_kg: Mapped[float | None] = mapped_column(Numeric(12, 3), nullable=True)
     reorder_level: Mapped[float | None] = mapped_column(Numeric(12, 3), nullable=True)
-    tax_profile_id: Mapped[int | None] = mapped_column(ForeignKey("tax_profiles.id"), nullable=True)
     stock_on_hand: Mapped[float] = mapped_column(Numeric(12, 3), default=0)
     active_retail_price: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -70,7 +56,6 @@ class Product(Base):
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
 
-    tax_profile: Mapped[TaxProfile | None] = relationship(back_populates="products")
     batch_items: Mapped[list["BatchItem"]] = relationship(back_populates="product")
     sales: Mapped[list["Sale"]] = relationship(back_populates="product")
 
@@ -151,7 +136,6 @@ class BatchItem(Base):
     foreign_unit_price: Mapped[float | None] = mapped_column(Numeric(14, 4), nullable=True)
     local_unit_product_cost: Mapped[float | None] = mapped_column(Numeric(14, 4), nullable=True)
     line_cost_mode: Mapped[str] = mapped_column(String(32), default="already_local")
-    tax_profile_id: Mapped[int | None] = mapped_column(ForeignKey("tax_profiles.id"), nullable=True)
     duty_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
     vat_amount: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
     shipping_share: Mapped[float | None] = mapped_column(Numeric(14, 2), nullable=True)
@@ -163,7 +147,6 @@ class BatchItem(Base):
 
     batch: Mapped[ShipmentBatch] = relationship(back_populates="items")
     product: Mapped[Product] = relationship(back_populates="batch_items")
-    tax_profile: Mapped[TaxProfile | None] = relationship()
 
 
 class CostEntry(Base):

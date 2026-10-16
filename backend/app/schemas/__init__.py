@@ -32,29 +32,6 @@ class UserOut(ORMModel):
     role: str
 
 
-# Tax profiles
-class TaxProfileCreate(BaseModel):
-    name: str
-    duty_rate: float = 0
-    vat_rate: float = 0
-    notes: str | None = None
-
-
-class TaxProfileUpdate(BaseModel):
-    name: str | None = None
-    duty_rate: float | None = None
-    vat_rate: float | None = None
-    notes: str | None = None
-
-
-class TaxProfileOut(ORMModel):
-    id: int
-    name: str
-    duty_rate: float
-    vat_rate: float
-    notes: str | None
-
-
 # Products
 class ProductCreate(BaseModel):
     sku: str | None = None
@@ -67,7 +44,6 @@ class ProductCreate(BaseModel):
     origin_country: str | None = None
     default_weight_kg: float | None = None
     reorder_level: float | None = None
-    tax_profile_id: int | None = None
 
 
 class ProductUpdate(BaseModel):
@@ -81,7 +57,6 @@ class ProductUpdate(BaseModel):
     origin_country: str | None = None
     default_weight_kg: float | None = None
     reorder_level: float | None = None
-    tax_profile_id: int | None = None
     active_retail_price: float | None = None
 
 
@@ -97,7 +72,6 @@ class ProductOut(ORMModel):
     origin_country: str | None = None
     default_weight_kg: float | None
     reorder_level: float | None = None
-    tax_profile_id: int | None
     stock_on_hand: float
     active_retail_price: float | None
 
@@ -141,7 +115,6 @@ class BatchItemCreate(BaseModel):
     foreign_unit_price: float | None = None
     local_unit_product_cost: float | None = None
     line_cost_mode: str = "already_local"
-    tax_profile_id: int | None = None
 
 
 class BatchItemUpdate(BaseModel):
@@ -150,7 +123,6 @@ class BatchItemUpdate(BaseModel):
     foreign_unit_price: float | None = None
     local_unit_product_cost: float | None = None
     line_cost_mode: str | None = None
-    tax_profile_id: int | None = None
     accepted_retail_price: float | None = None
 
 
@@ -163,7 +135,6 @@ class BatchItemOut(ORMModel):
     foreign_unit_price: float | None
     local_unit_product_cost: float | None
     line_cost_mode: str
-    tax_profile_id: int | None
     duty_amount: float | None
     vat_amount: float | None
     shipping_share: float | None

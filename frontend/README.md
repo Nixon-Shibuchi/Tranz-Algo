@@ -2,16 +2,17 @@
 
 React (Vite) admin dashboard for the working MVP.
 
-**How to use / product workflow:** root [`README.md`](../README.md)  
+**How to use / viva:** [`docs/viva/`](../docs/viva/) (Word guides)  
 **Design (as-built):** [`docs/design/`](../docs/design/)
 
 ## What’s in the UI
 
-- Welcome carousel, Login / Register, colour modes
+- Welcome landing, Login / Register, colour modes
 - True Cost studio (allocate, suggest or override retail, commit)
 - Dashboard (Start fresh), Products, Shipments + detail (lines and costs)
-- Stock board + Record sale, Tax profiles
-- Confirm dialogs; Margin-Guard on shipment detail
+- Stock board + Record sale
+- Cost history on committed shipments; Clear drafts on Shipments
+- Confirm dialogs; Fetch FX only for Auto FX batches
 
 ## Setup
 

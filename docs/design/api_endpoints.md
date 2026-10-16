@@ -1,7 +1,7 @@
 # Tranz-Algo — API Endpoint List
 
 **Design freeze:** Week 1 Day 1  
-**Updated:** matches implemented FastAPI routes  
+**Updated:** complete — matches implemented FastAPI routes  
 **Backend:** FastAPI  
 **Auth:** JWT Bearer token unless marked public  
 
@@ -10,11 +10,19 @@ Interactive docs: `http://127.0.0.1:8000/docs`
 
 ---
 
+## Health
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `GET` | `/health` | Public | Liveness `{ "status": "ok", "service": "tranz-algo" }` |
+
+---
+
 ## Auth
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| `POST` | `/auth/register` | Public | Create admin user |
+| `POST` | `/auth/register` | Public | Create account |
 | `POST` | `/auth/login` | Public | Return access token (JSON body) |
 | `POST` | `/auth/token` | Public | OAuth2 form login (Swagger “Authorize”) |
 | `GET` | `/auth/me` | JWT | Current user profile |
@@ -35,21 +43,9 @@ Interactive docs: `http://127.0.0.1:8000/docs`
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| `POST` | `/admin/reset-business-data` | JWT | Clear products, shipments, tax profiles, sales, ledger, FX cache; **keeps users** |
+| `POST` | `/admin/reset-business-data` | JWT | Clear products, shipments, sales, ledger, FX cache; **keeps users** |
 
 Used by Dashboard **Start fresh** (UI requires typing `RESET`).
-
----
-
-## Tax profiles
-
-| Method | Path | Auth | Purpose |
-|---|---|---|---|
-| `GET` | `/tax-profiles` | JWT | List profiles |
-| `POST` | `/tax-profiles` | JWT | Create profile |
-| `GET` | `/tax-profiles/{id}` | JWT | Get one |
-| `PUT` | `/tax-profiles/{id}` | JWT | Update |
-| `DELETE` | `/tax-profiles/{id}` | JWT | Delete |
 
 ---
 
@@ -69,10 +65,11 @@ Used by Dashboard **Start fresh** (UI requires typing `RESET`).
   "sku": "FAN-001",
   "name": "Standing Fan 16in",
   "default_weight_kg": 5,
-  "reorder_level": 3,
-  "tax_profile_id": 1
+  "reorder_level": 3
 }
 ```
+
+`sku` is **optional**. If omitted or blank, the API assigns `PRD-{id:04d}` (e.g. `PRD-0007`) after insert.
 
 ---
 
@@ -119,7 +116,7 @@ Used by Dashboard **Start fresh** (UI requires typing `RESET`).
 | `POST` | `/shipments/{id}/allocate` | JWT | Allocate; optional compare other method |
 | `POST` | `/shipments/{id}/suggest-prices` | JWT | Apply margin; write suggested prices |
 | `POST` | `/shipments/{id}/commit` | JWT | Ledger + stock up + apply accepted prices |
-| `POST` | `/shipments/{id}/margin-guard/recheck` | JWT | Alert if active retail below safe floor |
+| `POST` | `/shipments/{id}/margin-guard/recheck` | JWT | Optional API: safety-floor check (not exposed as a primary UI button; Cost history is the post-commit view) |
 
 **Allocate body (example)**
 ```json
@@ -207,7 +204,7 @@ UI: after suggest, user chooses **use suggestions automatically** (`accept_sugge
 
 ## Implementation notes (as built)
 
-1. Default DB is **SQLite** (`tranzalgo.db`); Postgres via `DATABASE_URL`.  
+1. Primary DB is **PostgreSQL** via `DATABASE_URL` (local or Supabase pooler); **SQLite** fallback if offline.  
 2. Tables auto-create on startup; SQLite also gets additive column migrate for older DBs.  
 3. Value-based allocation remains stretch (engine may support; UI uses quantity/weight).  
 4. Admin reset clears business data including `sales`.

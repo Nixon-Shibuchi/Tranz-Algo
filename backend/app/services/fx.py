@@ -23,14 +23,17 @@ def get_rate(
     quote: str = "ZMW",
     *,
     prefer_cache: bool = False,
+    cache_only: bool = False,
 ) -> tuple[float, str, datetime]:
     base = base.upper()
     quote = quote.upper()
 
-    if prefer_cache:
+    if prefer_cache or cache_only:
         cached = _latest_good(db, base, quote)
         if cached:
             return float(cached.rate), "cache", cached.fetched_at
+        if cache_only:
+            raise LookupError(f"No cached FX rate for {base}->{quote}")
 
     try:
         rate, source = fetch_remote_rate(base, quote)

@@ -1,6 +1,6 @@
 # Tranz-Algo
 
-**Explainable landed-cost inventory orchestration with Margin-Guard price suggestion for import-dependent SMEs.**
+**Explainable landed-cost inventory orchestration with dual cost modes and auditable price suggestion for import-dependent SMEs.**
 
 Tranz-Algo helps retailers who import goods in shipment batches recover the **true cost** of each item, suggest safe retail prices, and track inventory — without replacing POS, shipping companies, or clearing agents.
 
@@ -19,64 +19,21 @@ Tranz-Algo turns import paperwork into **per-item landed cost → suggested reta
 
 ---
 
-## How to use the app
+## How to use the app & viva
 
-In-app screens stay focused on data and actions. This section is the full how-to.
+Operator and viva guidance is in **Word documents** under [`docs/viva/`](docs/viva/):
 
-Paperwork lives on **Shipments**. Allocation, suggested retail, and commit live on **True Cost** — the top-level costing studio.
-
-### First visit
-
-1. Open the app. A skippable **Welcome to Tranz-Algo** carousel explains true cost, cost modes, Margin-Guard, and the ledger. It is shown once (stored in the browser); **Skip** or **Get started** goes to sign-in.
-2. **Register** an admin, then **sign in**. There is no shared demo password — each machine creates its own account.
-3. After sign-in, a sidebar (drawer on mobile) is the main navigation. Colour modes **Day / Night / Sienna** sit in the top bar (not on the sign-in screen).
-
-### Main screens
-
-| Screen | What you do |
+| Document | Use for |
 |---|---|
-| **Welcome** | First-visit intro carousel (skippable). Not shown again once dismissed. |
-| **True Cost** | Featured tab. Pick a batch, allocate shipping/duty/VAT, set margin, accept or override suggested retail, then **commit**. |
-| **Dashboard** | Overview of units available, low/out stock, draft vs committed shipments. **Start fresh** clears business data (type `RESET`). |
-| **Products** | Catalogue CRUD (SKU + name required). Optional: weight, reorder level, category, tax profile (under extra fields). |
-| **Shipments** | Create a batch, open it, or delete non-committed batches. |
-| **Shipment detail** | Add lines and **save costs** (FX, shipping, duty, VAT, paperwork source). Then **Open True Cost**. After commit: view ledger and **Margin-Guard** recheck. |
-| **Stock** | Available / low / out board. **Record sale** / **Sell** reduces units (not a full POS). Qty rises on **commit**. Low = at or below reorder level. |
-| **Tax profiles** | Optional duty/VAT % templates. You can still paste duty/VAT totals on a shipment from clearing paperwork. |
+| [How to Use the App](docs/viva/Tranz-Algo_How_to_Use_the_App.docx) | Screens, workflow, start commands, CSV demo path |
+| [Demo Shipment Data](docs/viva/Tranz-Algo_Demo_Shipment_Data.docx) | Printable Demo A/B numbers |
+| [Presentation Training Guide](docs/viva/Tranz-Algo_Presentation_Training_Guide.docx) | Talk script + rehearsal |
+| [Technology Justification & Viva Q&A](docs/viva/Tranz-Algo_Technology_Justification_and_Viva_QA.docx) | Panel questions |
 
-### Day-to-day workflow
+CSV samples: [`docs/scenarios/samples/`](docs/scenarios/samples/). Regenerate docs: `python docs/viva/build_viva_docs.py`.
 
-1. **Add products** (SKU, name; set default weight if using weight allocation).
-2. **Create a shipment** and choose a primary cost mode:
-   - **Already-Local** — paste local amounts from shipper/agent (easiest demo).
-   - **Auto FX** — foreign unit prices + exchange rate (Fetch FX or manual).
-   - **Mixed** — combine modes per line.
-3. On **shipment detail**, **add items** (qty, local or foreign unit cost) and **save costs** — shipping total, optional duty/VAT totals, paperwork source.
-4. Open **True Cost** (sidebar, dashboard, or **Open True Cost** on the shipment). If several batches exist, pick one from the batch rail.
-5. **Run allocation** (quantity or weight) — see the cost waterfall per unit, plus a comparison if you used the other method.
-6. **Set profit margin** (e.g. `0.30` = 30%) and **suggest prices**, or **enter prices manually**. True Cost shows projected revenue/profit and the **Margin-Guard floor**.
-7. **Commit batch** — locks the shipment, writes the True-Cost Ledger, increases stock, applies retail prices. Suggested retail is based on **this batch’s** landed cost × margin (it does not blend older batches or sales history). Committing a new batch for the same product overwrites that product’s active retail price.
-8. Check **Stock**. Use **Record sale** / **Sell** when units leave the shelf (reduces stock; not a full POS).
-9. Run **Margin-Guard** from shipment detail as needed (recheck against current landed cost and retail).
-
-### Shipment statuses
-
-| Status | Meaning |
-|---|---|
-| **draft** | Editable; stock and retail not applied yet. |
-| **costed** | Allocation (and usually suggestions) done; can still adjust before lock. |
-| **committed** | Read-only; ledger written, stock increased, retail applied. |
-
-### Demo path (Already-Local)
-
-Example numbers used in testing (enter lines and costs on the shipment, then allocate/price/commit in **True Cost**):
-
-- Products: FAN-001 (5 kg), BLD-002 (3 kg), KTL-003 (1.5 kg)
-- Lines: 10×520, 5×780, 10×260
-- Costs: shipping 4500, duty 1200, VAT 1800
-- Allocate by **quantity**, margin **0.30**
-
-Expected landed units ≈ 820 / 1080 / 560; suggested retail ≈ 1066 / 1404 / 728.
+**Quick demo:** Import `products_demo.csv` → `shipment_A_full.csv` / `shipment_B_full.csv` → True Cost → allocate → commit.  
+References: `SHP-DEMO-LOCAL-ZMW` (qty, margin 0.30) and `SHP-DEMO-AUTO-FX` (weight; rate starts at 20 / last fetched, then Fetch FX or 27.50 for oracle).
 
 ---
 
@@ -88,28 +45,22 @@ Expected landed units ≈ 820 / 1080 / 560; suggested retail ≈ 1066 / 1404 / 7
 |---|---|---|
 | Before buying / booking a shipper | Limited | Rough what-if only if you estimate costs |
 | After invoices/paperwork exist | **Primary** | True landed cost needs real figures |
-| After prices are set | Yes | Margin-Guard + inventory/batch reporting |
+| After prices are set | Yes | Cost history + stock / batch reporting |
 
 ### How taxes are handled
 
 The app **does not** call a live ZRA/customs assessment API.
 
-Taxes come from:
-
-1. **Already-Local paperwork** — duty/VAT totals from clearing/shipping documents.
-2. **Configurable duty/VAT profiles** — admin-defined templates.
-3. **Manual override** — exact amounts on a batch when needed.
-
-Tranz-Algo **stores, applies, allocates, and explains** tax costs. It does **not** legally assess customs.
+Duty/VAT come from **clearing paperwork totals** pasted on the shipment. Tranz-Algo **stores, allocates, and explains** those costs. It does **not** legally assess customs.
 
 ### Dual cost-entry modes
 
 | Mode | Input | FX API? | Best when |
 |---|---|---|---|
-| **Auto FX** | Foreign product prices | Yes (cache/manual fallback) | Supplier invoice still in USD/CNY/etc. |
-| **Already-Local** | Local amounts from shipper/agent | Not required for those fields | Freight/duty already converted |
+| **Auto FX** | Foreign product prices | Yes (**Fetch FX** / cache / manual) | Supplier invoice still in USD/CNY/etc. |
+| **Already-Local** | Local amounts from shipper/agent | Not required | Freight/duty already converted |
 
-Mixed paperwork is supported (e.g. Auto FX on supplier lines + Already-Local on freight/duty).
+Primary mode is chosen when the shipment is created. Shipping/duty/VAT are still entered as local paperwork totals in both modes.
 
 ---
 
@@ -133,9 +84,9 @@ LandedCost = LocalProductCost + ShippingShare + Duty + ImportVAT
 SuggestedRetailPrice = LandedCost × (1 + ProfitMargin)
 ```
 
-**Margin-Guard (concept)**
+**Safety floor (on True Cost)**
 
-If active retail price falls below recomputed landed cost × (1 + safety margin), raise an alert.
+`Floor = landed × (1 + safety margin)` (default 10%). While you drag profit margin or enter manual retail, the UI flags prices below the floor. There is no post-commit recheck — use **Cost history** after commit.
 
 ---
 
@@ -146,13 +97,13 @@ If active retail price falls below recomputed landed cost × (1 + safety margin)
 - Web admin dashboard (React)
 - Auth (JWT register/login)
 - Product + shipment-batch inventory
-- Dual cost-entry modes (Auto FX / Already-Local / mixed)
+- Dual cost-entry modes (Auto FX / Already-Local)
 - Landed-cost engine + allocation comparator (quantity + weight)
 - Price suggestion + auto/manual accept before commit
-- True-Cost Ledger / audit trail
+- Cost history / True-Cost Ledger on commit
 - Stock board (available / low / out) + **simple Record sale** (stock-out only)
-- Margin-Guard recheck
-- Admin **Start fresh** (clear business data)
+- CSV import (products + full shipment)
+- Admin **Start fresh** + **Clear drafts**
 - Dashboard summary cards
 
 ### Out of scope
@@ -171,8 +122,8 @@ If active retail price falls below recomputed landed cost × (1 + safety margin)
 |---|---|---|
 | Language | Python 3.11–3.13 | Numeric logic + APIs |
 | Backend | FastAPI + Uvicorn | Fast, free, auto OpenAPI docs |
-| Database | **SQLite** (default) | Zero-setup local MVP; demo-ready |
-| Database (optional) | PostgreSQL / Supabase | Set `DATABASE_URL` for deploy |
+| Database | **PostgreSQL** (Docker Compose or local) | Real relational DB for demos / viva |
+| Database (fallback) | SQLite | Zero-setup if Postgres is offline |
 | Frontend | React (Vite) web admin | Tables, ledgers, demos |
 | Optional mobile | React Native / Expo | Stretch goal |
 | FX data | Frankfurter + open.er-api.com fallback | Auto FX; manual rate always available |
@@ -188,7 +139,8 @@ If active retail price falls below recomputed landed cost × (1 + safety margin)
 - Python 3.11+ (recommended)
 - Node.js LTS + npm
 - VS Code (or similar)
-- Supabase account (optional) **or** local PostgreSQL **or** SQLite for local MVP (**default**)
+- Docker Desktop (for `docker compose` Postgres) **or** a local PostgreSQL install
+- SQLite still works as a fallback if Postgres is offline
 - Internet access for FX API in Auto FX mode (Already-Local can work offline for conversion)
 
 **Hardware**
@@ -198,7 +150,7 @@ If active retail price falls below recomputed landed cost × (1 + safety margin)
 
 **Accounts / keys (free)**
 
-- Optional Supabase/Postgres URL (SQLite works out of the box)
+- Postgres URL in `backend/.env` (see Getting started); SQLite works if you switch the URL back
 - No paid FX key required (Frankfurter + open.er-api.com fallback; manual rate always available)
 - Optional: free hosting later for demo (not required for viva if run locally)
 
@@ -206,23 +158,39 @@ If active retail price falls below recomputed landed cost × (1 + safety margin)
 
 ## Current implementation status
 
-Working local MVP (FastAPI + React + SQLite):
+Working local MVP (FastAPI + React + PostgreSQL, SQLite fallback):
 
-- Welcome carousel (first visit), JWT auth, colour modes (Day / Night / Sienna)
-- Products, tax profiles, shipments (items + costs on shipment detail)
+- Welcome landing (first visit), JWT auth, colour modes (Day / Night / Sienna)
+- Products, shipments (items + costs on shipment detail)
 - **True Cost** studio: allocate, suggest or override retail, commit, ledger
-- Dual cost modes + FX fetch/cache/manual
-- Stock board + Record sale
-- Margin-Guard recheck, dashboard, Start fresh
+- Dual cost modes + Fetch FX (Auto FX only) / cache / manual
+- Stock board + Record sale; Cost history on committed shipments
+- Dashboard, Start fresh, Clear drafts
 - Confirm dialogs on create/update/delete and costing actions
 - Costing unit tests (`backend/tests/test_costing.py`)
 
-Still open for viva prep: demo script practice, optional seed script, GitHub push/tag. Literature + evaluation pack are written.
+Still open for viva prep: demo script practice, optional seed script. Design, literature, and evaluation packs are complete under `docs/`.
 
 ---
 
 ## Getting started
 
+
+### Database (PostgreSQL)
+
+From the repo root (Docker):
+
+```powershell
+docker compose up -d
+```
+
+`backend/.env.example` already points at:
+
+```text
+DATABASE_URL=postgresql+psycopg://tranzalgo:tranzalgo@127.0.0.1:5432/tranzalgo
+```
+
+Copy it to `backend/.env` if needed. Tables are created automatically when the API starts.
 
 ### Backend
 
@@ -249,11 +217,11 @@ npm run dev
 ```
 
 - App: http://127.0.0.1:5173  
-- First load opens the **Welcome** carousel; skip or finish it to reach sign-in.
+- First load opens the **Welcome** screen; continue with Get started or Sign in.
 
 ### Quick demo path
 
-See **How to use the app** above (workflow + demo numbers).
+See [`docs/viva/`](docs/viva/) (How to Use the App + Demo Shipment Data).
 
 ### Tests
 
@@ -269,6 +237,7 @@ pytest -q
 
 ```text
 Tranz-Algo/
+├── docker-compose.yml       # Postgres 16 (docker compose up -d)
 ├── backend/                 # FastAPI app
 │   ├── app/
 │   │   ├── api/v1/          # auth, products, shipments, fx, inventory/sales, admin
@@ -281,12 +250,13 @@ Tranz-Algo/
 │   └── requirements.txt
 ├── frontend/                # React (Vite) admin
 │   ├── public/              # logo assets
-│   └── src/pages/           # welcome, login, true-cost, dashboard, products, shipments, stock, tax
+│   └── src/pages/           # welcome, login, true-cost, dashboard, products, shipments, stock
 ├── docs/
-│   ├── design/              # ERD, API, formulas, wireframes
-│   └── literature/          # sources + gap statement
-├── README.md
-└── THREE_WEEK_PLAN.md
+│   ├── design/              # architecture, ERD, API, formulas, wireframes, SE principles
+│   ├── literature/          # sources, gap, related work (complete)
+│   ├── scenarios/           # evaluation oracles
+│   └── viva/                # justification + presentation Word guides
+└── README.md
 ```
 
 ---
@@ -300,17 +270,16 @@ Tranz-Algo/
 - [x] Price suggestion with configurable margin (auto or manual accept)
 - [x] True-Cost Ledger on commit
 - [x] Stock board + simple Record sale
-- [x] Margin-Guard recheck + dashboard summary
+- [x] Dashboard summary + Cost history on commit
 - [x] Spreadsheet baseline evaluation pack (`docs/scenarios/`)
+- [x] CSV import — products catalogue + full shipment / lines
 - [ ] One-click demo seed script (register via UI / Start fresh for now)
 
 ### Stretch goals
 
 - Value-based allocation polished in UI
-- Scheduled Margin-Guard FX re-check / alert centre
-- CSV invoice import
+- Scheduled FX / margin alert centre
 - Expo mobile companion
-- Duty/VAT profile presets for common local categories
 
 ---
 
@@ -326,8 +295,8 @@ Many student and commercial systems already do inventory, POS, or basic markup p
 | **Normal inventory apps** | Stock in/out counts, low-stock alerts | Tracks stock by **import shipment batch**, with cost history attached to that batch |
 | **Shipping / logistics apps** | Book, track, and deliver goods | Does **not** ship anything; **uses** shipper/clearing invoices to split shared costs onto items |
 | **Accounting / ERP (Odoo, SAP-like)** | Broad finance, HR, procurement, inventory | Narrow, free, SME-focused **decision support** for landed cost and pricing only |
-| **Simple markup calculators / Excel** | One formula, manual and easy to mess up | Automates calculation, compares allocation methods, keeps an audit trail, and guards margins when FX moves |
-| **Typical final-year inventory projects** | CRUD products + users + basic reports | Adds dual cost-entry modes, allocation comparator, True-Cost Ledger, Margin-Guard, and evaluation vs spreadsheet baseline |
+| **Simple markup calculators / Excel** | One formula, manual and easy to mess up | Automates calculation, compares allocation methods, and keeps an audit trail |
+| **Typical final-year inventory projects** | CRUD products + users + basic reports | Adds dual cost-entry modes, allocation comparator, Cost history / True-Cost Ledger, and evaluation vs spreadsheet baseline |
 
 ### Unique features (the real difference)
 
@@ -342,17 +311,14 @@ Many student and commercial systems already do inventory, POS, or basic markup p
 3. **Allocation Comparator**  
    Users can compare weight vs quantity (and later value) allocation and see how each choice changes unit cost and suggested price — not one hidden formula.
 
-4. **True-Cost Ledger**  
-   Every suggested price can be traced to inputs, entry mode, FX rate or paperwork source, and allocation method. Good for trust, debugging, and viva demonstration.
+4. **Cost history / True-Cost Ledger**  
+   After commit, When / What entries show how landed cost and retail were set (margin % or manual), plus paperwork source.
 
-5. **Margin-Guard**  
-   Beyond `price = cost × (1 + margin)`, the system can warn when later FX movement erodes the safety margin.
+5. **Taxes without a paid customs API**  
+   Duty/VAT come from clearing paperwork totals on the shipment — practical and free, while still part of landed cost.
 
-6. **Taxes without a paid customs API**  
-   Duty/VAT come from clearing paperwork, configurable profiles, and manual entry — practical and free, while still part of landed cost.
-
-7. **Evidence-based uniqueness**  
-   The project is evaluated against a spreadsheet baseline (accuracy, time-to-price, margin protection), not just claimed as “better inventory.”
+6. **Evidence-based uniqueness**  
+   The project is evaluated against a spreadsheet baseline (accuracy, time-to-price), not just claimed as “better inventory.”
 
 ### One-line pitch
 
@@ -364,17 +330,15 @@ Tranz-Algo answers: *“What did this imported item actually cost me, what shoul
 ## Academic / project docs
 
 - Original proposal: `tranzalgo proposal.docx`
-- Improved plan: `Tranz-Algo Improved Final Year Project Plan.docx`
-- Work plan (collaborative notes): `Tranz-Algo Work plan V1.0.docx`
-- Next 3 weeks plan: `THREE_WEEK_PLAN.md`
-- Week 1 literature: `docs/literature/sources.md`, `docs/literature/gap_statement.md`
-- Related work: `docs/literature/related_work_draft.md`, `docs/literature/related_work_v1.md`
+- Presentation: `Tranz-Algo.pptx`
+- Literature pack (complete): `docs/literature/` — start at `README.md`
+- Design pack (complete): `docs/design/` — start at `README.md`
 - Evaluation scenarios: `docs/scenarios/` (see `eval_note.md`)
-- Design artefacts: `docs/design/` — see `docs/design/README.md`
+- Viva / how-to Word guides: `docs/viva/` (How to Use, Demo Data, Presentation, Q&A)
 
 ---
 
 ## Licence / status
 
 Final-year project prototype (University of Zambia — Computing and Informatics).  
-Build status: **working MVP** (local FastAPI + React + SQLite). Evaluation pack and literature Week 2–3 drafts still in progress.
+Build status: **working MVP** (local FastAPI + React + PostgreSQL, SQLite fallback). Design, literature, and evaluation packs are complete.

@@ -70,7 +70,7 @@ def on_startup() -> None:
 
 def _ensure_sqlite_columns() -> None:
     """Add new columns on existing SQLite DBs (create_all won't alter tables)."""
-    if not settings.database_url.startswith("sqlite"):
+    if not settings.is_sqlite:
         return
     statements = [
         ("products", "category", "VARCHAR(120)"),

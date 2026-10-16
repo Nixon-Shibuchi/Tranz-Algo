@@ -1,47 +1,39 @@
-# Scenario 05 — UI demo batch (FAN / BLD / KTL)
+# Scenario 05 — UI demo path (both demo shipments)
 
-**Purpose:** Match the live Already-Local demo used in the app.  
-**Local currency:** ZMW
+**Handout (viva folder):** [`../viva/Tranz-Algo_Demo_Shipment_Data.docx`](../viva/Tranz-Algo_Demo_Shipment_Data.docx)  
+**How to use the app:** [`../viva/Tranz-Algo_How_to_Use_the_App.docx`](../viva/Tranz-Algo_How_to_Use_the_App.docx)  
+**Regenerate all viva docs:** `python docs/viva/build_viva_docs.py`  
+**Detail oracles:** Scenario 01 (A) · Scenario 02 (B) · Scenario 03 (comparator) · Scenario 04 (floor)
 
-## Inputs
+---
+
+## Demo A — Already-Local → Scenario 01
 
 | Field | Value |
 |---|---|
-| Shipment | SHP-2026-DEMO (or any ref) |
-| Mode | Already-Local |
-| Allocation | Quantity |
-| Shipping | 4500 |
-| Duty | 1200 |
-| VAT | 1800 |
-| Margin | 0.30 |
+| Reference | `SHP-DEMO-LOCAL-ZMW` |
+| CSV | `samples/shipment_A_full.csv` |
+| Allocation | Quantity · margin **0.30** |
+| Landed | **170 / 107 / 160 / 120 / 93** |
 
-| SKU | Name | Qty | Weight/unit | Local unit |
-|---|---|---:|---:|---:|
-| FAN-001 | Standing Fan 16in | 10 | 5 | 520 |
-| BLD-002 | Blender 1.5L | 5 | 3 | 780 |
-| KTL-003 | Electric Kettle 2L | 10 | 1.5 | 260 |
+## Demo B — Auto FX → Scenario 02
 
-## Spreadsheet expected (quantity)
+| Field | Value |
+|---|---|
+| Reference | `SHP-DEMO-AUTO-FX` |
+| CSV | `samples/shipment_B_full.csv` |
+| FX | Starts at **20** (or last fetched) → Fetch FX or set **27.50** for oracle |
+| Allocation | Weight · margin **0.25** |
+| Landed @27.50 | **181.25 / 175 / 57.50 / 115** |
 
-Shares of 25 units:
+---
 
-| SKU | Ship | Duty | VAT | Product line | Landed unit | Suggested (×1.30) |
-|---|---:|---:|---:|---:|---:|---:|
-| FAN-001 | 1800 | 480 | 720 | 5200 | **820.00** | **1066.00** |
-| BLD-002 | 900 | 240 | 360 | 3900 | **1080.00** | **1404.00** |
-| KTL-003 | 1800 | 480 | 720 | 2600 | **560.00** | **728.00** |
+## Replay (classroom)
 
-## App replay
+1. Products → **Import CSV** (`samples/products_demo.csv`).  
+2. Shipments → **Clear drafts** if re-importing → **Import** `shipment_A_full.csv` → True Cost → quantity → commit.  
+3. Shipments → **Import** `shipment_B_full.csv` → Fetch FX (optional) → True Cost → weight → commit.  
+4. Open a committed shipment → **Cost history** (When / What).  
+5. Optional: re-open Demo A draft path and show **quantity vs weight** (Scenario 03) or drag margin below 10% (Scenario 04).
 
-Products → shipment → items → save costs → allocate quantity → suggest 0.30 → choose auto or manual → commit → Stock / Record sale as needed.
-
-## Result log
-
-| Field | Spreadsheet | App | Pass? |
-|---|---:|---:|---|
-| FAN landed | 820.00 | | |
-| BLD landed | 1080.00 | | |
-| KTL landed | 560.00 | | |
-| FAN suggested | 1066.00 | | |
-| BLD suggested | 1404.00 | | |
-| KTL suggested | 728.00 | | |
+Line-only CSVs (`shipment_A_lines.csv` / `shipment_B_lines.csv`) still work on shipment detail.

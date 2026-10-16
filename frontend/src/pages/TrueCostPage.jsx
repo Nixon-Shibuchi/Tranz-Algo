@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useConfirm } from "../components/ConfirmDialog";
 import CountUp from "../components/CountUp";
+import LoadingState from "../components/LoadingState";
 import { LOCAL_CURRENCY, money, modeLabel, percent } from "../format";
 
 const SEGMENTS = [
@@ -235,7 +236,13 @@ export default function TrueCostPage() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [loading, setLoading] = useState(true);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const batchesRef = useRef(batches);
+  batchesRef.current = batches;
+  const idRef = useRef(id);
+  idRef.current = id;
 
+  // List once on mount — do not re-hit the remote DB on every batch tab switch
   useEffect(() => {
     let alive = true;
     Promise.all([api("/shipments"), api("/products")])
@@ -243,7 +250,7 @@ export default function TrueCostPage() {
         if (!alive) return;
         setBatches(b);
         setProducts(p);
-        if (!id && b.length) {
+        if (!idRef.current && b.length) {
           const preferred = b.find((x) => x.status !== "committed") || b[0];
           navigate(`/true-cost/${preferred.id}`, { replace: true });
         }
@@ -253,28 +260,56 @@ export default function TrueCostPage() {
     return () => {
       alive = false;
     };
-  }, [id, navigate]);
+  }, [navigate]);
+
+  const applyBatch = useCallback((b) => {
+    setBatch(b);
+    setMethod(b.allocation_method || "quantity");
+    if (b.profit_margin != null) setMargin(num(b.profit_margin));
+  }, []);
 
   const loadBatch = useCallback(async () => {
     if (!id) return;
     const b = await api(`/shipments/${id}`);
-    setBatch(b);
-    setMethod(b.allocation_method || "quantity");
-    if (b.profit_margin != null) setMargin(num(b.profit_margin));
-  }, [id]);
+    applyBatch(b);
+    setBatches((prev) => {
+      const i = prev.findIndex((x) => String(x.id) === String(b.id));
+      if (i < 0) return [b, ...prev];
+      const next = [...prev];
+      next[i] = b;
+      return next;
+    });
+  }, [id, applyBatch]);
 
   useEffect(() => {
     if (!id) return;
+    let alive = true;
     setComparison(null);
     setPriceMode(null);
+    setManualPrices({});
     setError("");
     setOk("");
-    loadBatch().catch((e) => setError(e.message));
-  }, [id, loadBatch]);
 
-  const safety = num(batch?.safety_margin) || DEFAULT_SAFETY;
+    // Instant swap from list cache so previous batch costs don't linger on screen
+    const cached = batchesRef.current.find((x) => String(x.id) === String(id));
+    if (cached) {
+      applyBatch(cached);
+    } else {
+      setBatch(null);
+    }
+
+    setBatchLoading(true);
+    loadBatch()
+      .catch((e) => alive && setError(e.message))
+      .finally(() => alive && setBatchLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [id, loadBatch, applyBatch]);
+
   const locked = batch?.status === "committed";
   const stage = stageOf(batch);
+  const safety = num(batch?.safety_margin) || DEFAULT_SAFETY;
 
   const rows = useMemo(() => {
     if (!batch?.items?.length) return [];
@@ -304,6 +339,7 @@ export default function TrueCostPage() {
         landedUnit,
         preview,
         floor,
+        belowFloor: preview + 0.001 < floor,
         profitUnit: round2(preview - landedUnit),
         allocated: item.landed_unit_cost != null,
       };
@@ -328,7 +364,15 @@ export default function TrueCostPage() {
   }, [rows]);
 
   const hasAllocation = rows.length > 0 && rows.every((r) => r.allocated);
-  const marginBelowFloor = margin < safety;
+  const marginBelowSafety = hasAllocation && margin + 0.0001 < safety;
+  const suggestBelowFloor = hasAllocation && rows.some((r) => r.belowFloor);
+  const manualBelowFloor =
+    priceMode === "manual" &&
+    rows.some((r) => {
+      const v = Number(manualPrices[r.item.id]);
+      return Number.isFinite(v) && v + 0.001 < r.floor;
+    });
+  const pricingBelowFloor = suggestBelowFloor || manualBelowFloor;
 
   async function runAllocate() {
     const confirmed = await askConfirm({
@@ -356,10 +400,14 @@ export default function TrueCostPage() {
   }
 
   async function saveSuggestions() {
+    const floorNote = suggestBelowFloor
+      ? ` Warning: at ${percent(margin)} some suggested prices sit below the ${percent(safety)} safety floor.`
+      : "";
     const confirmed = await askConfirm({
       title: "Lock in these prices?",
-      message: `Save suggested retail prices at a ${percent(margin)} profit margin?`,
+      message: `Save suggested retail prices at a ${percent(margin)} profit margin?${floorNote}`,
       confirmLabel: "Yes, save prices",
+      danger: suggestBelowFloor,
     });
     if (!confirmed) return;
     setBusy("suggest");
@@ -368,7 +416,10 @@ export default function TrueCostPage() {
     try {
       const b = await api(`/shipments/${id}/suggest-prices`, {
         method: "POST",
-        body: JSON.stringify({ profit_margin: margin, safety_margin: safety }),
+        body: JSON.stringify({
+          profit_margin: margin,
+          safety_margin: num(batch?.safety_margin) || DEFAULT_SAFETY,
+        }),
       });
       setBatch(b);
       setPriceMode("auto");
@@ -412,10 +463,13 @@ export default function TrueCostPage() {
         return;
       }
     }
+    const floorNote = pricingBelowFloor
+      ? " Some retail prices are below the safety floor (landed × (1 + safety))."
+      : "";
     const confirmed = await askConfirm({
       title: "Commit batch?",
       message:
-        "Lock this shipment, write the True-Cost Ledger, raise stock and apply retail prices. This cannot be undone.",
+        `Lock this shipment, write Cost history, raise stock and apply retail prices. This cannot be undone.${floorNote}`,
       confirmLabel: "Yes, commit",
       danger: true,
     });
@@ -448,7 +502,22 @@ export default function TrueCostPage() {
     }
   }
 
-  if (loading) return <p className="pad">Loading true-cost engine…</p>;
+  if (loading) {
+    return (
+      <div>
+        <div className="page-head">
+          <div>
+            <span className="page-kicker">Costing engine</span>
+            <h1>True Cost</h1>
+          </div>
+        </div>
+        <LoadingState
+          label="Preparing True Cost"
+          tips={["Loading batches…", "Warming the costing workspace…"]}
+        />
+      </div>
+    );
+  }
 
   if (!batches.length) {
     return (
@@ -493,6 +562,14 @@ export default function TrueCostPage() {
         activeId={id}
         onSelect={(batchId) => navigate(`/true-cost/${batchId}`)}
       />
+      {batchLoading && batch && String(batch.id) === String(id) && (
+        <p className="muted tc-batch-refresh" aria-live="polite">
+          Refreshing batch from server…
+        </p>
+      )}
+      {batchLoading && !batch && (
+        <LoadingState tips={["Loading selected batch…", "Remote database can take a moment…"]} />
+      )}
 
       {error && <p className="error">{error}</p>}
       {ok && <p className="success">{ok}</p>}
@@ -703,7 +780,8 @@ export default function TrueCostPage() {
                       <span className="tc-panel-kicker">Step 2</span>
                       <h2>Find a safe retail price</h2>
                       <p className="muted">
-                        Drag the margin. Every price recalculates from real landed cost, live.
+                        Drag the margin. Prices update live. Red mark = safety floor (
+                        {percent(safety)} above landed).
                       </p>
                     </div>
                   </div>
@@ -721,20 +799,19 @@ export default function TrueCostPage() {
                         step="0.01"
                         value={margin}
                         disabled={locked}
+                        className={marginBelowSafety ? "danger" : undefined}
                         onChange={(e) => setMargin(Number(e.target.value))}
                         aria-label="Profit margin"
-                        className={marginBelowFloor ? "danger" : ""}
                       />
                       <div className="tc-margin-scale">
                         <span>0%</span>
-                        <span>
-                          Margin-Guard floor {percent(safety)}
-                        </span>
+                        <span>profit margin</span>
                         <span>100%</span>
                       </div>
-                      {marginBelowFloor && (
-                        <p className="tc-margin-warn">
-                          Below the Margin-Guard floor — these prices would trigger alerts.
+                      {marginBelowSafety && (
+                        <p className="tc-margin-warn" role="status">
+                          Margin is below the {percent(safety)} safety floor — suggested retail
+                          would sit under the safe price on every line.
                         </p>
                       )}
                     </div>
@@ -756,9 +833,12 @@ export default function TrueCostPage() {
 
                   <ul className="tc-ladder">
                     {rows.map((r) => {
-                      const span = Math.max(r.preview, r.floor, r.landedUnit) || 1;
+                      const span = Math.max(r.preview, r.landedUnit, r.floor) || 1;
                       return (
-                        <li key={r.item.id} className="tc-rung">
+                        <li
+                          key={r.item.id}
+                          className={`tc-rung${r.belowFloor ? " below-floor" : ""}`}
+                        >
                           <div className="tc-rung-id">
                             <strong>{r.sku}</strong>
                             <span className="muted">{r.name}</span>
@@ -777,7 +857,7 @@ export default function TrueCostPage() {
                             <span
                               className="tc-rung-floor"
                               style={{ left: `${(r.floor / span) * 100}%` }}
-                              title={`Margin-Guard floor ${money(r.floor)}`}
+                              title={`Floor ${money(r.floor)}`}
                             />
                           </div>
                           <div className="tc-rung-figures">
@@ -785,10 +865,15 @@ export default function TrueCostPage() {
                             <span className="tc-rung-arrow" aria-hidden="true">
                               →
                             </span>
-                            <strong className="tc-rung-retail">
+                            <strong
+                              className={`tc-rung-retail${r.belowFloor ? " stock-bad" : ""}`}
+                            >
                               <CountUp value={r.preview} duration={350} />
                             </strong>
                             <span className="tc-rung-gain">+{money(r.profitUnit)}</span>
+                            <span className="tc-rung-floor-label muted">
+                              floor {money(r.floor)}
+                            </span>
                           </div>
                         </li>
                       );
@@ -817,23 +902,34 @@ export default function TrueCostPage() {
                   {priceMode === "manual" && !locked && (
                     <div className="tc-manual">
                       <h3>Your retail prices</h3>
+                      <p className="muted">
+                        Floor = landed × (1 + {percent(safety)}). Prices below floor are flagged.
+                      </p>
                       {rows.map((r) => {
                         const raw = manualPrices[r.item.id];
                         const val = Number(raw);
-                        const below = Number.isFinite(val) && val > 0 && val < r.floor;
+                        const under =
+                          Number.isFinite(val) && raw !== "" && val + 0.001 < r.floor;
                         return (
-                          <div className="tc-manual-row" key={r.item.id}>
+                          <div
+                            className={`tc-manual-row${under ? " below-floor" : ""}`}
+                            key={r.item.id}
+                          >
                             <div>
                               <strong>{r.sku}</strong>
                               <span className="muted">
                                 {" "}
                                 landed {money(r.landedUnit)} · floor {money(r.floor)}
                               </span>
+                              {under && (
+                                <span className="tc-manual-warn"> below floor</span>
+                              )}
                             </div>
                             <label>
                               Retail ({LOCAL_CURRENCY})
                               <input
                                 value={raw ?? ""}
+                                className={under ? "danger" : undefined}
                                 onChange={(e) =>
                                   setManualPrices((prev) => ({
                                     ...prev,
@@ -842,7 +938,6 @@ export default function TrueCostPage() {
                                 }
                               />
                             </label>
-                            {below && <span className="tc-manual-warn">Below floor</span>}
                           </div>
                         );
                       })}
@@ -858,13 +953,12 @@ export default function TrueCostPage() {
                     <div>
                       <h2>Batch committed</h2>
                       <p className="muted">
-                        The True-Cost Ledger is written, stock is raised and retail prices are
-                        live.
+                        Cost history is written, stock is raised and retail prices are live.
                       </p>
                     </div>
                     <div className="actions-inline">
                       <Link className="btn" to={`/shipments/${batch.id}`}>
-                        View ledger
+                        View cost history
                       </Link>
                       <Link className="btn primary" to="/inventory">
                         Go to stock

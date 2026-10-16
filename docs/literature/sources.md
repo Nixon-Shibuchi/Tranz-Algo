@@ -1,8 +1,8 @@
-# Tranz-Algo — Week 1 Literature Sources
+# Tranz-Algo — Literature Sources (complete)
 
 **Owner:** Nixon Shibuchi (literature lead)  
-**Reviewer:** Musonda  
-**Status:** Week 1 foundation complete  
+**Reviewer:** Musonda Katongo  
+**Status:** Complete  
 **Purpose:** Annotated source list for related work on inventory systems, landed cost, FX risk, pricing rules, and comparable tools.
 
 ---
@@ -10,7 +10,7 @@
 ## How to use this file
 
 - Each entry has a citation, topic tag(s), and a short note on relevance to Tranz-Algo.
-- Week 2 will expand these into `related_work_draft.md`.
+- Narrative write-up: **`related_work_v1.md`** (canonical).
 - Prefer citing the academic/practitioner sources below in the final report; blog posts are supporting context only.
 
 ---
@@ -61,7 +61,7 @@ Illustrates that allocating freight into item landed cost materially changes uni
 https://www.diva-portal.org/smash/get/diva2:2012289/FULLTEXT01.pdf  
 **Tags:** FX risk, import firms, profitability  
 
-Finds exchange-rate volatility can significantly hurt profitability for import-dependent firms, while formal hedging uptake is limited. Supports Margin-Guard: many importers need operational tools (reprice/alerts), not only financial hedges.
+Finds exchange-rate volatility can significantly hurt profitability for import-dependent firms, while formal hedging uptake is limited. Supports operational FX tools (Fetch FX / manual rate) and cost-plus repricing, not only financial hedges.
 
 ### 8. Zambian MSMEs and Kwacha fluctuations (local relevance)
 **“Exploring the Influence of Kwacha Fluctuations on Medium Small and Micro Enterprises (MMSMEs) Profitability: A Case of Choma District, Southern Zambia,” *International Journal of Research and Innovation in Social Science (IJRISS)*, 2025.**  
@@ -100,40 +100,41 @@ Documents a free exchange-rate source suitable for Auto FX mode. Supports the pr
 
 ---
 
-## Week 1 comparison table
+## Comparison table
 
-| System type | Main job | Handles import shipment batch costing? | Dual Auto FX / Already-Local entry? | Explainable allocation comparison? | FX margin recheck after pricing? | Fit for small import retailer |
+| System type | Main job | Handles import shipment batch costing? | Dual Auto FX / Already-Local entry? | Explainable allocation comparison? | Audit / margin guard after pricing? | Fit for small import retailer |
 |---|---|---|---|---|---|---|
 | **POS / shop apps** | Sell & take payment | Rarely | No | No | No | Good for selling, weak for true import cost |
 | **Basic inventory apps** | Stock in/out | Weak / manual | Usually no | Usually no | No | Tracks quantity more than true cost |
 | **Excel / spreadsheets** | Ad-hoc calculation | Possible but fragile | Manual only | Possible but opaque | Rarely automated | Common, error-prone, hard to audit |
 | **Shipping / clearing tools** | Move/clear goods; produce invoices | Produces cost paperwork | Shipper may convert some charges | Does not price your retail catalogue | No | Necessary logistics partner, not a pricing system |
 | **ERP (e.g. Odoo/SAP-class)** | Broad enterprise ops | Often yes (complex setup) | Varies; enterprise workflows | Possible but heavy | Possible with config | Often too costly/complex for small SMEs |
-| **Tranz-Algo** | Import true-cost → suggested price → batch inventory | **Yes (core)** | **Yes (core)** | **Yes (comparator)** | **Yes (Margin-Guard)** | Built for this niche |
+| **Tranz-Algo** | Import true-cost → suggested price → batch inventory | **Yes (core)** | **Yes (core)** | **Yes (comparator)** | Cost history + safety floor on adjust | Built for this niche |
 
 ### Reading the table
 Most similar student projects stop at inventory CRUD or simple markup. Commercial ERPs can do landed cost but are broad and heavy. Shipping companies may convert freight to local currency, but they do not allocate all import costs across a retailer’s SKUs or guard margins later. **Tranz-Algo’s difference is the decision-support niche between paperwork and selling price.**
 
-**Implementation note (current MVP):** Tranz-Algo now includes a simple **Record sale** stock-out so on-hand quantities stay truthful after commit. This is **not** a POS—there are no payments, customers, or receipts. Sales remain out of the core academic claim; the claim stays landed-cost explanation + dual modes + ledger + Margin-Guard.
+**Implementation note (current MVP):** Tranz-Algo now includes a simple **Record sale** stock-out so on-hand quantities stay truthful after commit. This is **not** a POS—there are no payments, customers, or receipts. Sales remain out of the core academic claim; the claim stays landed-cost explanation + dual modes + Cost history / True-Cost Ledger.
 
 ---
 
-## Source coverage checklist (Week 1 requirement)
+## Source coverage checklist
 
-| Required topic | Sources covering it |
-|---|---|
-| Inventory / retail management systems | 5, 11 |
-| Landed cost and import logistics | 3, 4, 5, 6 |
-| Currency risk / exchange rates in trade | 7, 8, 9, 12 |
-| Algorithmic / rule-based retail pricing | 9, 10 |
-| Open-source ERP/inventory tools (comparison) | 11 |
-| Engineering / implementation support | 1, 2 |
+| Required topic | Sources covering it | Done |
+|---|---|---|
+| Inventory / retail management systems | 5, 11 | Yes |
+| Landed cost and import logistics | 3, 4, 5, 6 | Yes |
+| Currency risk / exchange rates in trade | 7, 8, 9, 12 | Yes |
+| Algorithmic / rule-based retail pricing | 9, 10 | Yes |
+| Open-source ERP/inventory tools (comparison) | 11 | Yes |
+| Engineering / implementation support | 1, 2 | Yes |
 
 ---
 
-## Week 2–3 literature outputs
+## Pack completeness
 
-- [x] `related_work_draft.md` — narrative related work + feature→gap map  
-- [x] `related_work_v1.md` — report-ready polish  
-
-Evaluation scenarios: `docs/scenarios/` (spreadsheet oracles + `eval_note.md`).
+- [x] Annotated sources 1–12  
+- [x] Comparison table (tool classes vs Tranz-Algo)  
+- [x] Gap statement (`gap_statement.md`)  
+- [x] Related work narrative (`related_work_v1.md`)  
+- [x] Evaluation scenarios linked (`docs/scenarios/`, `eval_note.md`)

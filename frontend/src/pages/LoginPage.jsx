@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { Logo } from "../components/Brand";
 import DoodleBackdrop from "../components/Doodles";
@@ -7,9 +7,9 @@ import { hasSeenWelcome } from "../welcome";
 
 export default function LoginPage() {
   const { user, login, register } = useAuth();
-  const [email, setEmail] = useState("admin@example.com");
-  const [password, setPassword] = useState("admin123");
-  const [fullName, setFullName] = useState("Admin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [mode, setMode] = useState("login");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -45,19 +45,27 @@ export default function LoginPage() {
 
       <div className="login-panel">
         <form className="card login-card" onSubmit={onSubmit}>
+          <Link to="/welcome" className="login-back">
+            ← Back to welcome
+          </Link>
           <div className="login-brand">
             <Logo size={52} />
             <div>
               <h1>Tranz-Algo</h1>
               <p className="muted">
-                {mode === "login" ? "Sign in to your workspace" : "Create your admin account"}
+                {mode === "login" ? "Sign in to your workspace" : "Create your account"}
               </p>
             </div>
           </div>
           {mode === "register" && (
             <label>
               Full name
-              <input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+              <input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Your name"
+                autoComplete="name"
+              />
             </label>
           )}
           <label>
@@ -66,6 +74,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
               required
               autoComplete="username"
             />
@@ -77,6 +86,7 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
                 required
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
               />
@@ -92,7 +102,7 @@ export default function LoginPage() {
           </label>
           {error && <p className="error">{error}</p>}
           <button className="btn primary" disabled={busy}>
-            {busy ? "Please wait…" : mode === "login" ? "Sign in" : "Create admin"}
+            {busy ? "Please wait…" : mode === "login" ? "Sign in" : "Create account"}
           </button>
           <button
             type="button"

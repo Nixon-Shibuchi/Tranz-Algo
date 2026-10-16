@@ -1,42 +1,40 @@
 # Evaluation note — App vs spreadsheet oracle
 
 **Project:** Tranz-Algo  
-**Date:** 2026-08-11  
-**Scope:** Core landed-cost + suggestion formulas (Week 3 evaluation pack)
+**Updated:** 2026-10-15  
+**Scope:** Demo shipments `SHP-DEMO-LOCAL-ZMW` + `SHP-DEMO-AUTO-FX` (CSV samples + handout)
 
 ## Method
 
-1. Freeze formulas from `docs/design/cost_modes_and_formulas.md`.  
-2. Build spreadsheet oracles for Already-Local (qty) and Auto FX (weight).  
-3. Encode the same oracles as pytest fixtures in `backend/tests/test_costing.py`.  
-4. Provide UI replay scripts in `docs/scenarios/`.
+1. Freeze demo inputs in `samples/shipment_A_full.csv` and `samples/shipment_B_full.csv`.  
+2. Encode the same oracles as pytest fixtures in `backend/tests/test_costing.py`.  
+3. Replay in the app via Scenario 05 (CSV import → True Cost → commit).
 
 Tolerance: absolute difference ≤ **0.01** ZMW.
 
-## Results (engine / automated)
+## Results
 
 | Scenario | Check | Result |
 |---|---|---|
-| 01 Already-Local qty | Landed 704 / 954 / 454; RP 880 / 1192.50 / 567.50 | **PASS** (`pytest`) |
-| 02 Auto FX weight | Landed 1026.54 / 1236.06 / 445.77; FAN RP 1334.50 | **PASS** (`pytest`) |
-| 03 Comparator | Qty vs weight deltas as tabulated | **PASS** (manual arithmetic; UI shows comparison) |
-| 04 Margin-Guard | Floor 820 × 1.10 = 902; 880 triggers alert logic | **PASS** (formula) |
-| 05 UI demo | Landed 820 / 1080 / 560; RP 1066 / 1404 / 728 | **PASS** (matches prior API E2E + design) |
+| 01 Already-Local qty | Landed 170 / 107 / 160 / 120 / 93; RP @30% 221 / 139.10 / 208 / 156 / 120.90 | **PASS** (`pytest`) |
+| 02 Auto FX weight | @27.50 landed 181.25 / 175 / 57.50 / 115; EARBUD RP 226.56 | **PASS** (`pytest`) |
+| 03 Comparator | Demo A qty vs weight deltas (rice ↑, soap/tea ↓) | **PASS** (manual arithmetic; UI compare) |
+| 04 Safety floor | RICE floor 187; margin&lt;10% warns on True Cost | **PASS** (formula + pricing-time UI) |
+| 05 UI demos | Same batches via CSV import path | **PASS** (hand-checked vs samples) |
 
 ## Interpretation
 
-- The costing engine reproduces the design-freeze spreadsheet examples.  
 - Dual modes are evidenced by Scenario 01 (Already-Local) and Scenario 02 (Auto FX).  
-- Allocation sensitivity is evidenced by Scenario 03.  
-- Margin-Guard floor arithmetic is evidenced by Scenario 04.  
-- The classroom/demo path is evidenced by Scenario 05.
+- Allocation sensitivity is evidenced by Scenario 03 on Demo A.  
+- Safety floor is evidenced by Scenario 04 on True Cost (no recheck button).  
+- Classroom path is Scenario 05 using the same demo CSVs/handout.
 
 ## Limitations
 
-- Full UI click-through for every scenario should be re-confirmed before viva on a clean database.  
-- Value-based allocation remains stretch (not in this eval pack).  
-- Live FX API rates vary; Scenario 02 uses a **fixed** rate 27.00 for reproducibility.
+- Full UI click-through should be re-confirmed before viva on a clean database (**Start fresh** / **Clear drafts**).  
+- Value-based allocation remains stretch.  
+- Live FX rates vary; Scenario 02 uses fixed **27.50** for reproducibility.
 
 ## Conclusion
 
-Against the spreadsheet baseline, Tranz-Algo’s core true-cost and suggestion calculations are accurate within the agreed tolerance for the evaluated scenarios.
+Against the demo-shipment spreadsheet baseline, Tranz-Algo’s core true-cost and suggestion calculations are accurate within the agreed tolerance.

@@ -1,89 +1,114 @@
 from app.services.costing import compute_landed_for_method, money, suggest_prices
 
 
-def test_example_b_quantity_already_local():
+def test_demo_a_quantity_already_local():
+    """SHP-DEMO-LOCAL-ZMW — Scenario 01 / samples/shipment_A_full.csv"""
     items = [
         {
             "id": 1,
-            "quantity": 10,
-            "weight_kg": 50,
+            "quantity": 20,
+            "weight_kg": 100,
             "line_cost_mode": "already_local",
-            "local_unit_product_cost": 500,
+            "local_unit_product_cost": 95,
         },
         {
             "id": 2,
-            "quantity": 5,
-            "weight_kg": 15,
+            "quantity": 30,
+            "weight_kg": 30,
             "line_cost_mode": "already_local",
-            "local_unit_product_cost": 750,
+            "local_unit_product_cost": 32,
         },
         {
             "id": 3,
             "quantity": 10,
-            "weight_kg": 15,
+            "weight_kg": 20,
             "line_cost_mode": "already_local",
-            "local_unit_product_cost": 250,
+            "local_unit_product_cost": 85,
+        },
+        {
+            "id": 4,
+            "quantity": 24,
+            "weight_kg": 12,
+            "line_cost_mode": "already_local",
+            "local_unit_product_cost": 45,
+        },
+        {
+            "id": 5,
+            "quantity": 16,
+            "weight_kg": 1.92,
+            "line_cost_mode": "already_local",
+            "local_unit_product_cost": 18,
         },
     ]
     results = compute_landed_for_method(
         items,
         method="quantity",
-        shipping_total=3000,
+        shipping_total=5000,
         exchange_rate=None,
-        batch_duty_total=900,
-        batch_vat_total=1200,
-        tax_rates_by_item={},
+        batch_duty_total=1000,
+        batch_vat_total=1500,
     )
     by_id = {r["item_id"]: r for r in results}
-    assert by_id[1]["landed_unit_cost"] == 704.00
-    assert by_id[2]["landed_unit_cost"] == 954.00
-    assert by_id[3]["landed_unit_cost"] == 454.00
+    assert by_id[1]["landed_unit_cost"] == 170.00
+    assert by_id[2]["landed_unit_cost"] == 107.00
+    assert by_id[3]["landed_unit_cost"] == 160.00
+    assert by_id[4]["landed_unit_cost"] == 120.00
+    assert by_id[5]["landed_unit_cost"] == 93.00
 
     suggested = suggest_prices(
-        [(r["item_id"], r["landed_unit_cost"]) for r in results], 0.25
+        [(r["item_id"], r["landed_unit_cost"]) for r in results], 0.30
     )
     s = {x["item_id"]: x["suggested_retail_price"] for x in suggested}
-    assert s[1] == 880.00
-    assert s[2] == 1192.50
-    assert s[3] == 567.50
+    assert s[1] == 221.00
+    assert s[2] == 139.10
+    assert s[3] == 208.00
+    assert s[4] == 156.00
+    assert s[5] == 120.90
 
 
-def test_example_a_weight_auto_fx():
+def test_demo_b_weight_auto_fx():
+    """SHP-DEMO-AUTO-FX — Scenario 02 / samples/shipment_B_full.csv @ 27.50"""
     items = [
         {
             "id": 1,
-            "quantity": 10,
-            "weight_kg": 50,
+            "quantity": 40,
+            "weight_kg": 2.0,
             "line_cost_mode": "auto_fx",
-            "foreign_unit_price": 20,
+            "foreign_unit_price": 6.00,
         },
         {
             "id": 2,
-            "quantity": 5,
-            "weight_kg": 15,
+            "quantity": 30,
+            "weight_kg": 6.0,
             "line_cost_mode": "auto_fx",
-            "foreign_unit_price": 30,
+            "foreign_unit_price": 4.00,
         },
         {
             "id": 3,
-            "quantity": 10,
-            "weight_kg": 15,
+            "quantity": 40,
+            "weight_kg": 2.0,
             "line_cost_mode": "auto_fx",
-            "foreign_unit_price": 10,
+            "foreign_unit_price": 1.50,
+        },
+        {
+            "id": 4,
+            "quantity": 40,
+            "weight_kg": 4.0,
+            "line_cost_mode": "auto_fx",
+            "foreign_unit_price": 3.00,
         },
     ]
-    rates = {1: (0.10, 0.16), 2: (0.10, 0.16), 3: (0.10, 0.16)}
     results = compute_landed_for_method(
         items,
         method="weight",
-        shipping_total=5400,
-        exchange_rate=27.0,
-        batch_duty_total=None,
-        batch_vat_total=None,
-        tax_rates_by_item=rates,
+        shipping_total=2800,
+        exchange_rate=27.5,
+        batch_duty_total=700,
+        batch_vat_total=1050,
     )
     by_id = {r["item_id"]: r for r in results}
-    assert by_id[1]["landed_unit_cost"] == 1026.54
-    assert by_id[2]["landed_unit_cost"] == 1236.06
-    assert by_id[3]["landed_unit_cost"] == 445.77
-    assert money(1026.54 * 1.30) == 1334.50
+    assert by_id[1]["landed_unit_cost"] == 181.25
+    assert by_id[2]["landed_unit_cost"] == 175.00
+    assert by_id[3]["landed_unit_cost"] == 57.50
+    assert by_id[4]["landed_unit_cost"] == 115.00
+    assert money(181.25 * 1.25) == 226.56

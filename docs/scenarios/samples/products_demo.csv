@@ -1,0 +1,10 @@
+sku,name,weight,unit,reorder_level
+RICE-5,Rice 5 kg,5,bag,10
+SUGAR-1,Sugar 1 kg,1,pack,20
+OIL-2L,Cooking oil 2 L,2,bot,15
+TEA-500,Black tea 500 g,0.5,pack,25
+SOAP-BAR,Bath soap bar,0.12,pcs,30
+EARBUD,Wireless earbuds,0.05,pcs,20
+CHARGER,Phone charger,0.20,pcs,15
+CABLE,USB-C cable,0.05,pcs,25
+CASE-SOFT,Phone soft case,0.08,pcs,20

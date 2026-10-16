@@ -1,4 +1,4 @@
-"""GoF Facade: shipment costing workflow (allocate → suggest → commit → margin-guard).
+"""GoF Facade: shipment costing workflow (allocate → suggest → commit).
 
 Keeps FastAPI routers thin (GRASP Controller) while domain side-effects stay here
 (Information Expert / High Cohesion). Raising WorkflowError lets the API map status codes.
@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import BatchItem, LedgerEntry, Product, ShipmentBatch, TaxProfile
+from app.models import BatchItem, LedgerEntry, Product, ShipmentBatch
 from app.services.costing import compute_landed_for_method, margin_guard_alert, money, suggest_prices
 
 
@@ -57,21 +57,6 @@ def item_dicts(batch: ShipmentBatch) -> list[dict]:
     ]
 
 
-def tax_rates(db: Session, batch: ShipmentBatch) -> dict[int, tuple[float, float]]:
-    rates: dict[int, tuple[float, float]] = {}
-    for item in batch.items:
-        profile_id = item.tax_profile_id
-        if not profile_id and item.product:
-            profile_id = item.product.tax_profile_id
-        if profile_id:
-            profile = db.get(TaxProfile, profile_id)
-            if profile:
-                rates[item.id] = (float(profile.duty_rate), float(profile.vat_rate))
-                continue
-        rates[item.id] = (0.0, 0.0)
-    return rates
-
-
 def allocate_batch(
     db: Session,
     batch_id: int,
@@ -85,7 +70,6 @@ def allocate_batch(
         raise WorkflowError("Batch has no items")
 
     items = item_dicts(batch)
-    rates = tax_rates(db, batch)
     shipping = float(batch.shipping_total or 0)
     rate = float(batch.exchange_rate) if batch.exchange_rate is not None else None
     duty_total = float(batch.duty_total) if batch.duty_total is not None else None
@@ -99,7 +83,6 @@ def allocate_batch(
             exchange_rate=rate,
             batch_duty_total=duty_total,
             batch_vat_total=vat_total,
-            tax_rates_by_item=rates,
         )
         comparison: dict = {"selected": selected}
         if compare:
@@ -112,7 +95,6 @@ def allocate_batch(
                     exchange_rate=rate,
                     batch_duty_total=duty_total,
                     batch_vat_total=vat_total,
-                    tax_rates_by_item=rates,
                 )
             except ValueError:
                 comparison[other] = None
@@ -181,10 +163,14 @@ def commit_batch(
     for item in batch.items:
         if item.id in overrides:
             item.accepted_retail_price = money(overrides[item.id])
+            pricing_method = "manual"
         elif accept_suggestions:
             if item.suggested_retail_price is None:
                 raise WorkflowError("Suggest prices before commit")
             item.accepted_retail_price = item.suggested_retail_price
+            pricing_method = "margin_percent"
+        else:
+            raise WorkflowError("Accept suggestions or provide manual prices before commit")
         product = db.get(Product, item.product_id)
         if product:
             product.stock_on_hand = float(product.stock_on_hand or 0) + float(item.quantity)
@@ -217,6 +203,7 @@ def commit_batch(
                     "accepted_retail_price": float(item.accepted_retail_price),
                     "suggested_retail_price": float(item.suggested_retail_price or 0),
                     "profit_margin": float(batch.profit_margin or 0),
+                    "pricing_method": pricing_method,
                 },
                 created_by=user_id,
             )

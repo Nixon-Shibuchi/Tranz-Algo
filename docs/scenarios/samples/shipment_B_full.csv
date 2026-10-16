@@ -1,0 +1,16 @@
+field,value
+reference,SHP-DEMO-AUTO-FX
+mode,auto_fx
+supplier,Shenzhen Parts Co
+currency_foreign,USD
+notes,DEMO B — Auto FX. Starter rate 20 (or last fetched). Click Fetch FX for live; for oracle check use 27.50.
+exchange_rate,20
+shipping,2800
+duty,700
+vat,1050
+paperwork,CI-220 / clearance CL-55 — AUTO FX DEMO
+sku,qty,line_weight_kg,foreign_unit
+EARBUD,40,2.0,6.00
+CHARGER,30,6.0,4.00
+CABLE,40,2.0,1.50
+CASE-SOFT,40,4.0,3.00

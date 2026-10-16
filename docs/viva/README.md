@@ -1,0 +1,29 @@
+# Viva pack — how to use the app & present
+
+All operator / viva guidance lives here as **Word documents**. Regenerate them with `build_viva_docs.py`.
+
+| Document | Purpose |
+|---|---|
+| [Tranz-Algo_How_to_Use_the_App.docx](./Tranz-Algo_How_to_Use_the_App.docx) | Screens, workflow, start commands, demo CSV path, safety floor |
+| [Tranz-Algo_Demo_Shipment_Data.docx](./Tranz-Algo_Demo_Shipment_Data.docx) | Printable Demo A/B numbers (`SHP-DEMO-LOCAL-ZMW` / `SHP-DEMO-AUTO-FX`) |
+| [Tranz-Algo_Presentation_Training_Guide.docx](./Tranz-Algo_Presentation_Training_Guide.docx) | Talk structure, demo script, rehearsal, roles |
+| [Tranz-Algo_Technology_Justification_and_Viva_QA.docx](./Tranz-Algo_Technology_Justification_and_Viva_QA.docx) | Stack deltas + likely panel Q&A |
+| [Tranz-Algo_Contribution_Split.docx](./Tranz-Algo_Contribution_Split.docx) | Nixon vs Musonda work division (design joint; code mostly Nixon) |
+| [build_viva_docs.py](./build_viva_docs.py) | Regenerates all five `.docx` files |
+
+**CSV samples** (data only): [`../scenarios/samples/`](../scenarios/samples/)  
+**Spreadsheet oracle** = independently calculated expected Demo A/B numbers (hand/spreadsheet ground truth); the app must match within ±0.01 ZMW. Tables: [`../scenarios/`](../scenarios/). Panel wording is in the Q&A Word doc.
+
+## Regenerate
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe ..\docs\viva\build_viva_docs.py
+```
+
+## What to open on viva day
+
+1. How to Use the App  
+2. Demo Shipment Data (second screen / printout)  
+3. Presentation Training Guide  
+4. Technology Justification & Viva Q&A (for panel questions)

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import AppShell from "./components/AppShell";
+import LoadingState from "./components/LoadingState";
 import LoginPage from "./pages/LoginPage";
 import WelcomePage from "./pages/WelcomePage";
 import DashboardPage from "./pages/DashboardPage";
@@ -8,12 +9,21 @@ import ProductsPage from "./pages/ProductsPage";
 import ShipmentsPage from "./pages/ShipmentsPage";
 import ShipmentDetailPage from "./pages/ShipmentDetailPage";
 import InventoryPage from "./pages/InventoryPage";
-import TaxProfilesPage from "./pages/TaxProfilesPage";
 import TrueCostPage from "./pages/TrueCostPage";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <p className="pad">Loading…</p>;
+  if (loading) {
+    return (
+      <div className="pad">
+        <LoadingState
+          className="loading-state--page"
+          label="Checking your session"
+          tips={["Restoring your workspace…", "Almost ready…"]}
+        />
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
   return <AppShell>{children}</AppShell>;
 }
@@ -76,14 +86,6 @@ export default function App() {
         element={
           <PrivateRoute>
             <InventoryPage />
-          </PrivateRoute>
-        }
-      />
-      <Route
-        path="/tax-profiles"
-        element={
-          <PrivateRoute>
-            <TaxProfilesPage />
           </PrivateRoute>
         }
       />

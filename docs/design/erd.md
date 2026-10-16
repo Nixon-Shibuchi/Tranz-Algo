@@ -1,61 +1,145 @@
 # Tranz-Algo — ERD & Data Dictionary
 
 **Design freeze:** Week 1 Day 1  
-**Updated:** aligned with implemented MVP (incl. `sales`, `paperwork_source`)  
-**Owners:** Nixon + Musonda  
-**Status:** Implemented — build matches this dictionary unless noted
+**Updated:** 2026-10-15 — matches `backend/app/models/__init__.py` (tax profiles removed)  
+**Owners:** Nixon + Musonda Katongo  
+**Status:** Complete  
+
+**SKU note:** Products may receive an auto-generated SKU (`PRD-000N`) when the client omits one; the `sku` column remains unique and required at persistence.  
+**IDs:** All primary keys are **integer serial** (not UUID).
 
 ---
 
-## Entity relationship overview
+## Entity relationship diagram (presentation-ready)
 
-```text
-┌─────────────┐       ┌─────────────────┐       ┌──────────────────┐
-│    users    │       │  tax_profiles   │       │ fx_rate_cache    │
-└──────┬──────┘       └────────┬────────┘       └──────────────────┘
-       │                       │
-       │ creates               │ optional default
-       ▼                       ▼
-┌──────────────────┐     ┌─────────────┐──────── sales (stock-out)
-│ shipment_batches │◄────│  products   │
-└────────┬─────────┘     └──────┬──────┘
-         │                      │
-         │ 1:N                  │ 1:N (via batch_items)
-         ▼                      ▼
-┌──────────────────┐     ┌──────────────────┐
-│   batch_items    │─────│  (product ref)   │
-└────────┬─────────┘     └──────────────────┘
-         │
-         │ costs / results
-         ▼
-┌──────────────────┐     ┌──────────────────┐
-│   cost_entries   │     │  ledger_entries  │
-│ (batch + lines)  │     │ (audit trail)    │
-└──────────────────┘     └──────────────────┘
+```mermaid
+erDiagram
+    users ||--o{ shipment_batches : creates
+    users ||--o{ sales : records
+    users ||--o{ ledger_entries : authors
+
+    products ||--o{ batch_items : "appears on"
+    products ||--o{ sales : "stock-out"
+
+    shipment_batches ||--o{ batch_items : contains
+    shipment_batches ||--o{ cost_entries : "optional audit rows"
+    shipment_batches ||--o{ ledger_entries : "true-cost audit"
+
+    batch_items ||--o{ ledger_entries : "item events"
+
+    fx_rate_cache
+
+    users {
+        int id PK
+        string email UK
+        string password_hash
+        string role
+    }
+
+    products {
+        int id PK
+        string sku UK
+        string name
+        decimal stock_on_hand
+        decimal active_retail_price
+    }
+
+    shipment_batches {
+        int id PK
+        string reference UK
+        int created_by FK
+        string status
+        string primary_cost_mode
+        decimal shipping_total
+        decimal duty_total
+        decimal vat_total
+        decimal exchange_rate
+    }
+
+    batch_items {
+        int id PK
+        int batch_id FK
+        int product_id FK
+        decimal quantity
+        string line_cost_mode
+        decimal landed_unit_cost
+        decimal accepted_retail_price
+    }
+
+    cost_entries {
+        int id PK
+        int batch_id FK
+        string charge_type
+        string entry_mode
+        decimal amount
+    }
+
+    ledger_entries {
+        int id PK
+        int batch_id FK
+        int batch_item_id FK
+        string event_type
+        json payload_json
+    }
+
+    sales {
+        int id PK
+        int product_id FK
+        decimal quantity
+        decimal stock_after
+        int created_by FK
+    }
+
+    fx_rate_cache {
+        int id PK
+        string base_currency
+        string quote_currency
+        decimal rate
+        bool is_last_known_good
+    }
 ```
 
-**Cardinalities (summary)**
-- One `user` creates many `shipment_batches`
-- One `product` appears in many `batch_items` (across batches)
-- One `shipment_batch` has many `batch_items`
-- One `shipment_batch` has one active cost calculation set (`cost_entries` / totals) and many `ledger_entries`
-- One `product` may link to one default `tax_profile` (optional)
-- One `product` has many `sales` (simple stock-out records)
-- `fx_rate_cache` is standalone lookup storage for Auto FX
+### ASCII overview (for Word / PPT paste)
+
+```text
+     ┌─────────────┐        ┌──────────────┐
+     │  products   │───────▶│ batch_items  │
+     └──────┬──────┘  1:N   └──────▲───────┘
+            │                      │
+            │ 1:N sales            │ N:1
+            ▼                      │
+     ┌─────────────┐        ┌──────┴───────────┐
+     │    sales    │        │ shipment_batches │◀── users (creates)
+     └─────────────┘        └────────┬─────────┘
+                                     │
+                    ┌────────────────┼────────────────┐
+                    ▼                ▼                ▼
+            ledger_entries    cost_entries     (FX on batch)
+            (True-Cost)       (optional)       fx_rate_cache
+                                               (standalone)
+```
+
+**Cardinalities**
+- One `user` creates many `shipment_batches`; may author `sales` and `ledger_entries`
+- One `product` appears in many `batch_items` and many `sales`
+- One `shipment_batch` has many `batch_items`, many `ledger_entries`, optional `cost_entries`
+- `fx_rate_cache` is independent lookup storage for Auto FX
+
+**MVP reality note:** Shipping / duty / VAT totals live on `shipment_batches` (pasted from clearing paperwork); allocation results live on `batch_items`. `cost_entries` exists in the schema for optional charge audit but the main UI path does not require filling it. Ledger rows (**Cost history**) are written on **commit**.
 
 ---
 
 ## Tables
 
 ### 1. `users`
-Admin accounts for the dashboard.
+User accounts for the dashboard.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | UUID / serial PK | |
+| `id` | integer PK | Serial |
 | `email` | string, unique | Login identity |
 | `full_name` | string | |
-| `password_hash` | string | Never store plain passwords |
+| `password_hash` | string | bcrypt — never plain text |
 | `role` | string | MVP: `admin` only |
 | `created_at` | datetime | |
 | `updated_at` | datetime | |
@@ -65,179 +149,171 @@ Catalogue items that can be received in import batches.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | UUID / serial PK | |
-| `sku` | string, unique | Store code |
+| `id` | integer PK | Shown in UI as `#id` |
+| `sku` | string, unique | Manual or auto `PRD-000N` |
 | `name` | string | |
 | `description` | text, nullable | |
-| `category` | string, nullable | e.g. Electronics |
+| `category` | string, nullable | |
 | `brand` | string, nullable | |
-| `unit` | string | default `pcs` (carton/kg/pair/set) |
+| `unit` | string | default `pcs` |
 | `barcode` | string, nullable | |
 | `origin_country` | string, nullable | |
-| `default_weight_kg` | decimal, nullable | Used for weight allocation defaults |
+| `default_weight_kg` | decimal, nullable | Weight allocation default |
 | `reorder_level` | decimal, nullable | Low-stock hint |
-| `tax_profile_id` | FK → tax_profiles, nullable | Optional duty/VAT template |
-| `stock_on_hand` | decimal/int | + on commit; − on Record sale |
+| `stock_on_hand` | decimal | + on commit; − on Record sale |
 | `active_retail_price` | decimal, nullable | Last accepted selling price |
 | `created_at` | datetime | |
 | `updated_at` | datetime | |
 
-### 3. `tax_profiles`
-Configurable duty/VAT templates (not a live ZRA API).
+### 3. `shipment_batches`
+One import shipment / invoice group — unit of truth for costing.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | UUID / serial PK | |
-| `name` | string | e.g. "Electronics", "General goods" |
-| `duty_rate` | decimal | e.g. `0.15` for 15% |
-| `vat_rate` | decimal | e.g. `0.16` for 16% |
-| `notes` | text, nullable | Source of rates / reminder |
-| `created_at` | datetime | |
-
-### 4. `shipment_batches`
-One import shipment / invoice group — the unit of truth for costing.
-
-| Field | Type | Notes |
-|---|---|---|
-| `id` | UUID / serial PK | |
-| `reference` | string | e.g. `SHP-2026-001` |
+| `id` | integer PK | |
+| `reference` | string, unique | e.g. `SHP-2026-001` |
 | `created_by` | FK → users | |
 | `supplier_name` | string, nullable | |
-| `invoice_number` | string, nullable | Supplier commercial invoice |
+| `invoice_number` | string, nullable | |
 | `clearing_agent` | string, nullable | |
-| `carrier_name` | string, nullable | Shipping company |
+| `carrier_name` | string, nullable | |
 | `origin_country` | string, nullable | |
 | `destination` | string, nullable | default Zambia |
-| `expected_arrival_date` | string/date, nullable | |
-| `received_date` | string/date, nullable | |
+| `expected_arrival_date` | string, nullable | |
+| `received_date` | string, nullable | |
 | `status` | string | `draft` \| `costed` \| `committed` |
-| `primary_cost_mode` | string | `auto_fx` \| `already_local` \| `mixed` |
-| `currency_foreign` | string, nullable | e.g. `USD`, `CNY` (Auto FX) |
-| `currency_local` | string | MVP default `ZMW` |
-| `exchange_rate` | decimal, nullable | Rate used (API/cache/manual) |
-| `exchange_rate_source` | string, nullable | `api` \| `cache` \| `manual` \| `shipper_docs` |
-| `exchange_rate_at` | datetime, nullable | When rate was obtained |
-| `shipping_total` | decimal, nullable | Shared freight total (local after conversion if needed) |
-| `shipping_currency_mode` | string | `auto_fx` \| `already_local` |
-| `duty_total` | decimal, nullable | Batch-level duty if entered as total |
-| `vat_total` | decimal, nullable | Batch-level VAT if entered as total |
+| `primary_cost_mode` | string | `auto_fx` \| `already_local` (UI); `mixed` retained in schema only |
+| `currency_foreign` | string, nullable | |
+| `currency_local` | string | default `ZMW` |
+| `exchange_rate` | decimal, nullable | |
+| `exchange_rate_source` | string, nullable | `api` \| `cache` \| `manual` \| … |
+| `exchange_rate_at` | datetime, nullable | |
+| `shipping_total` | decimal, nullable | Shared freight (local) |
+| `shipping_currency_mode` | string | stored; MVP allocates local totals |
+| `duty_total` | decimal, nullable | Duty total from clearing paperwork |
+| `vat_total` | decimal, nullable | VAT total from clearing paperwork |
 | `allocation_method` | string, nullable | `weight` \| `quantity` \| `value` |
-| `profit_margin` | decimal, nullable | e.g. `0.30` for 30% |
-| `safety_margin` | decimal, nullable | For Margin-Guard, e.g. `0.10` |
-| `paperwork_source` | text, nullable | Clearing/shipping doc reference |
+| `profit_margin` | decimal, nullable | e.g. `0.30` |
+| `safety_margin` | decimal, nullable | Stored with suggest; used in design safety-floor oracle |
+| `paperwork_source` | text, nullable | |
 | `notes` | text, nullable | |
-| `committed_at` | datetime, nullable | When stock/prices locked in |
+| `committed_at` | datetime, nullable | |
 | `created_at` | datetime | |
 | `updated_at` | datetime | |
 
-### 5. `batch_items`
-Lines on a shipment (product + qty + per-line cost inputs/results).
+### 4. `batch_items`
+Lines on a shipment.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | UUID / serial PK | |
+| `id` | integer PK | |
 | `batch_id` | FK → shipment_batches | |
 | `product_id` | FK → products | |
-| `quantity` | decimal/int | Units received |
-| `weight_kg` | decimal, nullable | Line weight (defaults from product if empty) |
-| `foreign_unit_price` | decimal, nullable | Auto FX supplier unit price |
-| `local_unit_product_cost` | decimal, nullable | Already-Local / after conversion |
+| `quantity` | decimal | |
+| `weight_kg` | decimal, nullable | |
+| `foreign_unit_price` | decimal, nullable | Auto FX |
+| `local_unit_product_cost` | decimal, nullable | Already-Local / after FX |
 | `line_cost_mode` | string | `auto_fx` \| `already_local` |
-| `tax_profile_id` | FK → tax_profiles, nullable | Override product default |
-| `duty_amount` | decimal, nullable | Computed or manual |
-| `vat_amount` | decimal, nullable | Computed or manual |
-| `shipping_share` | decimal, nullable | Allocated share |
-| `landed_unit_cost` | decimal, nullable | Result |
-| `landed_line_cost` | decimal, nullable | Result (`landed_unit_cost * qty` or sum of parts) |
-| `suggested_retail_price` | decimal, nullable | Result |
-| `accepted_retail_price` | decimal, nullable | User-accepted price |
+| `duty_amount` | decimal, nullable | After allocate |
+| `vat_amount` | decimal, nullable | After allocate |
+| `shipping_share` | decimal, nullable | After allocate |
+| `landed_unit_cost` | decimal, nullable | |
+| `landed_line_cost` | decimal, nullable | |
+| `suggested_retail_price` | decimal, nullable | |
+| `accepted_retail_price` | decimal, nullable | On commit |
 | `created_at` | datetime | |
 
-### 6. `cost_entries`
-Optional structured record of charge headers / paperwork sources for a batch (supports dual modes + audit).
+### 5. `cost_entries`
+Optional structured charge rows (schema present).
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | UUID / serial PK | |
+| `id` | integer PK | |
 | `batch_id` | FK → shipment_batches | |
 | `charge_type` | string | `product` \| `shipping` \| `duty` \| `vat` \| `other` |
 | `entry_mode` | string | `auto_fx` \| `already_local` |
 | `amount` | decimal | |
-| `currency` | string | |
-| `paperwork_source` | string, nullable | e.g. "Clearing agent invoice #12" |
+| `currency` | string | default `ZMW` |
+| `paperwork_source` | string, nullable | |
 | `notes` | text, nullable | |
 | `created_at` | datetime | |
 
-> MVP can store main totals on `shipment_batches` and still use `cost_entries` for source audit. Prefer writing `cost_entries` when committing a calculation.
-
-### 7. `ledger_entries`
-**True-Cost Ledger** — immutable-style audit rows explaining a calculation.
+### 6. `ledger_entries`
+**True-Cost Ledger** — audit snapshots.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | UUID / serial PK | |
+| `id` | integer PK | |
 | `batch_id` | FK → shipment_batches | |
-| `batch_item_id` | FK → batch_items, nullable | Null for batch-level events |
-| `event_type` | string | `rate_set` \| `allocated` \| `landed_cost` \| `price_suggested` \| `price_accepted` \| `margin_alert` |
-| `payload_json` | JSON | Snapshot: inputs, mode, method, intermediates, outputs |
+| `batch_item_id` | FK → batch_items, nullable | |
+| `event_type` | string | As-built: `landed_cost`, `price_accepted`, `paperwork_source`, `margin_alert` |
+| `payload_json` | JSON | Inputs / outputs snapshot |
 | `created_by` | FK → users, nullable | |
 | `created_at` | datetime | |
 
-### 8. `fx_rate_cache`
-Cached FX for Auto FX mode + fallback.
+### 7. `fx_rate_cache`
+Cached FX for Auto FX + downtime fallback.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | UUID / serial PK | |
+| `id` | integer PK | |
 | `base_currency` | string | e.g. `USD` |
 | `quote_currency` | string | e.g. `ZMW` |
 | `rate` | decimal | |
-| `source` | string | `frankfurter` \| `manual` \| provider name |
+| `source` | string | `frankfurter` \| `open_er_api` \| `manual` \| … |
 | `fetched_at` | datetime | |
-| `is_last_known_good` | boolean | For downtime fallback |
+| `is_last_known_good` | boolean | Fallback flag |
 
-### 9. `sales`
-Simple **stock-out** when goods leave the shelf. Not a POS (no payments, receipts, or customers).
+### 8. `sales`
+Simple **stock-out** (not POS).
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | serial PK | |
+| `id` | integer PK | |
 | `product_id` | FK → products | |
-| `quantity` | decimal | Units sold |
-| `unit_price` | decimal, nullable | Snapshot (defaults to active retail) |
-| `stock_after` | decimal | On-hand after this sale |
-| `note` | string, nullable | Optional |
+| `quantity` | decimal | |
+| `unit_price` | decimal, nullable | |
+| `stock_after` | decimal | |
+| `note` | string, nullable | |
 | `created_by` | FK → users, nullable | |
 | `created_at` | datetime | |
 
 ---
 
-## Status meanings (`shipment_batches.status`)
+## Status lifecycle (`shipment_batches.status`)
+
+```mermaid
+stateDiagram-v2
+    [*] --> draft
+    draft --> costed: allocate
+    costed --> draft: edit lines/costs
+    costed --> committed: commit
+    committed --> [*]
+```
 
 | Status | Meaning |
 |---|---|
-| `draft` | Editable setup — items/costs can change; stock & retail prices not updated |
-| `costed` | Allocation (+ usually suggestion) computed; not yet applied to stock/prices |
-| `committed` | Ledger saved; stock updated; accepted prices applied; batch read-only |
+| `draft` | Editable; stock/retail not applied |
+| `costed` | Allocation done; can still adjust before lock |
+| `committed` | Ledger + stock + retail applied; read-only |
 
 ---
 
-## Indexes (recommended)
+## Indexes (implemented / recommended)
 
 - `products.sku` unique  
 - `shipment_batches.reference` unique  
 - `batch_items(batch_id)`, `batch_items(product_id)`  
-- `ledger_entries(batch_id, created_at)`  
-- `fx_rate_cache(base_currency, quote_currency, fetched_at)`  
-- `sales(product_id)`, `sales(created_at)`  
+- `ledger_entries(batch_id)`  
+- `fx_rate_cache(base_currency, quote_currency)`  
+- `sales(product_id)`  
 
 ---
 
 ## Out of ERD (intentionally)
 
-- Full POS (customers, payments, receipts, carts)  
-- Payment transactions  
+- Full POS (customers, payments, receipts)  
 - Courier tracking / shipment booking  
-- Multi-warehouse transfers (MVP single stock pool)
+- Multi-warehouse transfers  
 
-> **Accepted delta:** a lightweight `sales` table exists for stock truth after commit. It is **not** a POS module.
+> Lightweight `sales` exists for stock truth only — **not** a POS module.

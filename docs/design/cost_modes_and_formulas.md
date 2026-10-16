@@ -1,52 +1,59 @@
 # Dual Cost Modes, Allocation & Worked Formula Examples
 
 **Design freeze:** Week 1 Day 1  
+**Updated:** 2026-10-15 — dual modes only in UI; duty/VAT from paperwork totals; Cost history after commit  
+**Status:** Complete  
 **Owners:** Nixon + Musonda  
-**As built:** Quantity + weight allocation in UI; value-based still stretch. After suggest, UI offers auto-accept vs manual retail before commit. Worked examples A/B are covered by `backend/tests/test_costing.py`.
+**As built:** Primary UI modes are Already-Local and Auto FX (chosen on create). Quantity + weight allocation in UI; value-based supported in engine. After suggest, UI offers auto-accept vs manual retail before commit; live **safety floor** (`Landed × 1.1`) on True Cost adjust — no post-commit recheck. CI locks **demo** oracles in `backend/tests/test_costing.py`; Examples A/B below are report worked examples of the same formulas.
 
 ---
 
 ## 1. Dual cost-entry modes
 
+```mermaid
+flowchart TD
+  Start[Shipment lines + shared costs] --> Mode{Primary mode on create}
+  Mode -->|auto_fx| FX[Convert foreign unit × rate]
+  Mode -->|already_local| Local[Use local unit product cost]
+  FX --> Alloc[Allocate shipping duty VAT]
+  Local --> Alloc
+  Alloc --> Landed[Landed unit + line]
+  Landed --> Suggest[Suggested RP = landed × 1+margin]
+  Suggest --> Commit[Accept price → commit]
+  Commit --> Hist[Cost history When / What]
+```
+
 ### Auto FX mode
-Use when supplier product prices (and optionally freight) are still in foreign currency.
+Use when supplier product prices are still in foreign currency. **Fetch FX** is available on shipment costs for this mode.
 
 **Required inputs**
 - Foreign currency code (e.g. `USD`)
-- Exchange rate (API / cache / manual)
+- Exchange rate (Fetch FX / cache / manual)
 - Per-item `foreign_unit_price` + `quantity`
-- Shipping total (foreign or local — if foreign, convert with same/manual rate)
-- Duty/VAT via profile rates or manual amounts
+- Local shipping total (and duty/VAT totals from clearing paperwork)
 
 **System actions**
 1. Convert product lines to local currency  
-2. Convert shipping if needed  
-3. Allocate shipping share  
-4. Apply duty/VAT  
-5. Compute landed cost + suggested price  
+2. Allocate shipping / duty / VAT shares  
+3. Compute landed cost + suggested price  
 
 ### Already-Local mode
-Use when shipper/clearing agent/bank paperwork already shows local amounts.
+Use when shipper/clearing agent paperwork already shows local amounts. No Fetch FX on this path.
 
 **Required inputs**
-- Per-item `local_unit_product_cost` (or line product total) + `quantity`
-- Local shipping total (from shipper invoice)
-- Local duty/VAT totals or per-line amounts
-- `paperwork_source` text (for ledger)
+- Per-item `local_unit_product_cost` + `quantity`
+- Local shipping total
+- Local duty/VAT totals from paperwork
+- `paperwork_source` text (for Cost history)
 
 **System actions**
-1. Skip forced FX API conversion for those fields  
-2. Allocate shared local shipping (and shared tax totals if entered at batch level)  
+1. Skip FX conversion for product lines  
+2. Allocate shared local shipping and tax totals  
 3. Compute landed cost + suggested price  
-4. Record paperwork source in ledger / cost_entries  
+4. Record paperwork source in Cost history on commit  
 
-### Mixed paperwork (allowed)
-Example: Auto FX on supplier product lines + Already-Local on freight/duty from clearing agent.
-
-Store:
-- `shipment_batches.primary_cost_mode = mixed`
-- each `batch_items.line_cost_mode`
-- each charge’s `entry_mode` on `cost_entries`
+### Mixed paperwork (concept)
+Real imports often mix a foreign supplier invoice with local clearing totals. In the MVP UI, choose **Auto FX** or **Already-Local** as the primary mode; shipping/duty/VAT are still pasted as local paperwork totals in both cases. A separate “Mixed” primary mode is not shown in the UI.
 
 ---
 
@@ -65,17 +72,17 @@ Value-based:     ShippingShare_i = (line_value_i / total_line_value) × shipping
 ```
 where `line_value_i` is local product line value after conversion/entry.
 
-### Duty / VAT (profile method — illustrative MVP)
+### Duty / VAT (paperwork totals)
 ```text
-TaxableBase_i = LocalProductCost_i × qty_i     # or include shipping share if you choose that policy
-Duty_i = TaxableBase_i × duty_rate
-VAT_i  = (TaxableBase_i + Duty_i) × vat_rate
+DutyShare_i  = (basis_i / total_basis) × duty_total
+VATShare_i   = (basis_i / total_basis) × vat_total
 ```
-If user enters batch-level duty/VAT totals instead, allocate by the same method as shipping (document choice in ledger).
+where `basis` is the same as shipping (weight or quantity).
 
 **MVP policy (freeze this):**  
-- If tax profile on line → compute duty/VAT from **local product line value only** (exclude shipping share).  
-- If manual batch totals entered → allocate duty/VAT totals by selected allocation method.
+- Paste duty/VAT **totals from clearing paperwork** on the shipment.  
+- Allocate those totals by the selected allocation method (same basis as shipping).  
+- Missing totals are treated as zero.
 
 ### Landed cost
 ```text
@@ -93,10 +100,11 @@ LandedUnitCost_i = LandedLineCost_i / qty_i
 SuggestedRP_i = LandedUnitCost_i × (1 + ProfitMargin)
 ```
 
-### Margin-Guard
+### Safety floor (True Cost pricing)
 ```text
-Alert if ActiveRetailPrice_i < RecomputedLandedUnitCost_i × (1 + SafetyMargin)
+Floor_i = LandedUnitCost_i × (1 + SafetyMargin)   # default safety 10%
 ```
+Live UI: while adjusting profit margin or manual retail on True Cost, flag lines where suggested/entered price is below floor. No post-commit recheck button — **Cost history** after commit. Scenario 04 covers the formula + UI replay.
 
 Rounding: store money at 2 decimal places; tests allow `<= 0.01` difference vs spreadsheet oracle.
 
@@ -104,11 +112,12 @@ Rounding: store money at 2 decimal places; tests allow `<= 0.01` difference vs s
 
 ## 3. Worked example A — Auto FX
 
-**Batch:** `SHP-DEMO-AUTO`  
+**Batch:** design worked example (classroom / scenarios use `SHP-DEMO-AUTO-FX` in `docs/scenarios/`)  
 **FX:** `1 USD = 27.00 ZMW` (manual/API)  
 **Shipping:** `200 USD` → `5400.00 ZMW`  
 **Allocation compare:** weight vs quantity  
-**Tax profile:** duty 10%, VAT 16% on local product line value  
+**Duty total (paperwork):** `1215.00 ZMW`  
+**VAT total (paperwork):** `2138.40 ZMW`  
 **Profit margin:** 30%
 
 ### Items
@@ -147,29 +156,29 @@ Rounding: store money at 2 decimal places; tests allow `<= 0.01` difference vs s
 | B | 5/25 | 1080.00 |
 | C | 10/25 | 2160.00 |
 
-### Step 3 — Duty/VAT on product line value (profile)
+### Step 3 — Duty/VAT shares (`duty_total = 1215`, `vat_total = 2138.40`, **weight**)
 
-| Item | Product line | Duty 10% | VAT 16% on (product+duty) |
+| Item | Weight share | Duty share | VAT share |
 |---|---:|---:|---:|
-| A | 5400.00 | 540.00 | 950.40 |
-| B | 4050.00 | 405.00 | 712.80 |
-| C | 2700.00 | 270.00 | 475.20 |
+| A | 50/80 | 759.38 | 1336.50 |
+| B | 15/80 | 227.81 | 400.95 |
+| C | 15/80 | 227.81 | 400.95 |
 
 ### Step 4 — Landed cost (using **weight** allocation)
 
 | Item | Product | Ship | Duty | VAT | Line landed | Unit landed |
 |---|---:|---:|---:|---:|---:|---:|
-| A | 5400.00 | 3375.00 | 540.00 | 950.40 | **10265.40** | **1026.54** |
-| B | 4050.00 | 1012.50 | 405.00 | 712.80 | **6180.30** | **1236.06** |
-| C | 2700.00 | 1012.50 | 270.00 | 475.20 | **4457.70** | **445.77** |
+| A | 5400.00 | 3375.00 | 759.38 | 1336.50 | **10870.88** | **1087.09** |
+| B | 4050.00 | 1012.50 | 227.81 | 400.95 | **5691.26** | **1138.25** |
+| C | 2700.00 | 1012.50 | 227.81 | 400.95 | **4341.26** | **434.13** |
 
 ### Step 5 — Suggested RP (30% margin)
 
 | Item | Unit landed | Suggested RP |
 |---|---:|---:|
-| A | 1026.54 | **1334.50** |
-| B | 1236.06 | **1606.88** |
-| C | 445.77 | **579.50** |
+| A | 1087.09 | **1413.22** |
+| B | 1138.25 | **1479.73** |
+| C | 434.13 | **564.37** |
 
 *(Suggested = landed_unit × 1.30, rounded to 2 dp.)*
 
@@ -177,7 +186,7 @@ Rounding: store money at 2 decimal places; tests allow `<= 0.01` difference vs s
 
 ## 4. Worked example B — Already-Local
 
-**Batch:** `SHP-DEMO-LOCAL`  
+**Batch:** design worked example (classroom / scenarios use `SHP-DEMO-LOCAL-ZMW` in `docs/scenarios/`)  
 **Paperwork source:** Clearing agent invoice CA-778; shipper freight note FR-221  
 **Shipping (local):** `3000.00 ZMW`  
 **Duty total (manual batch):** `900.00 ZMW`  
@@ -221,19 +230,20 @@ Rounding: store money at 2 decimal places; tests allow `<= 0.01` difference vs s
 
 ---
 
-## 5. Margin-Guard mini example
+## 5. Safety-floor mini example
 
-Suppose item A from Example B is accepted at **880.00**.  
-Later, a reference recompute raises unit landed cost to **820.00** with safety margin 10%:
+On True Cost **Price** stage, if unit landed is **820.00** and safety margin is 10%:
 
 ```text
 Floor = 820.00 × 1.10 = 902.00
-Active RP 880.00 < 902.00 → RAISE ALERT
+Suggested/manual RP 880.00 < 902.00 → UI flags below floor (live, before commit)
 ```
+
+This is a **pre-commit** guard while adjusting margin/retail. After commit, use **Cost history** — there is no automatic post-commit margin recheck in the MVP UI.
 
 ---
 
-## 6. Unit-test seeds (copy into Week 1 tests)
+## 6. Unit-test seeds
 
-Use Example A (weight path) and Example B (quantity path) as oracle fixtures.  
-Assert each `LandedUnitCost` and `SuggestedRP` within `0.01`.
+CI fixtures in `backend/tests/test_costing.py` lock the **demo shipments** (`SHP-DEMO-LOCAL-ZMW` quantity, `SHP-DEMO-AUTO-FX` weight @ 27.50).  
+Examples A/B above remain report worked examples of the same formulas. See `docs/scenarios/`.

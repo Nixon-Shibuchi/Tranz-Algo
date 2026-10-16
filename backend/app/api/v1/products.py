@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.models import BatchItem, Product, TaxProfile, User
+from app.models import BatchItem, Product, User
 from app.schemas import ProductCreate, ProductOut, ProductUpdate
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -42,8 +42,6 @@ def create_product(
     data["sku"] = sku or f"TMP-{uuid4().hex[:12].upper()}"
     if sku and db.scalars(select(Product).where(Product.sku == sku)).first():
         raise HTTPException(status_code=400, detail="SKU already exists")
-    if data.get("tax_profile_id") and not db.get(TaxProfile, data["tax_profile_id"]):
-        raise HTTPException(status_code=404, detail="Tax profile not found")
     product = Product(**data)
     db.add(product)
     db.flush()
@@ -83,8 +81,6 @@ def update_product(
         ).first()
         if clash:
             raise HTTPException(status_code=400, detail="SKU already exists")
-    if data.get("tax_profile_id") and not db.get(TaxProfile, data["tax_profile_id"]):
-        raise HTTPException(status_code=404, detail="Tax profile not found")
     for key, value in data.items():
         setattr(product, key, value)
     db.commit()

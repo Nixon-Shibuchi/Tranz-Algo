@@ -7,6 +7,7 @@ import {
   ListCapBar,
   ListDrawer,
 } from "../components/ListDrawer";
+import LoadingState from "../components/LoadingState";
 import { money } from "../format";
 import { STOCK_STATUS_LABEL, stockQty, stockStatus } from "../stock";
 
@@ -32,18 +33,27 @@ export default function InventoryPage() {
   const [busy, setBusy] = useState(false);
   const [stockDrawerOpen, setStockDrawerOpen] = useState(false);
   const [salesDrawerOpen, setSalesDrawerOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  async function load() {
-    const [inv, recent] = await Promise.all([
-      api("/inventory"),
-      api("/inventory/sales?limit=50"),
-    ]);
-    setRows(inv);
-    setSales(recent);
+  async function load({ quiet = false } = {}) {
+    if (!quiet) setLoading(true);
+    try {
+      const [inv, recent] = await Promise.all([
+        api("/inventory"),
+        api("/inventory/sales?limit=50"),
+      ]);
+      setRows(inv);
+      setSales(recent);
+    } finally {
+      if (!quiet) setLoading(false);
+    }
   }
 
   useEffect(() => {
-    load().catch((e) => setError(e.message));
+    load().catch((e) => {
+      setError(e.message);
+      setLoading(false);
+    });
   }, []);
 
   const sellable = useMemo(
@@ -293,12 +303,29 @@ export default function InventoryPage() {
       });
       setSaleOpen(false);
       setOk(`Sold ${sale.quantity} × ${sale.sku}. ${sale.stock_after} left.`);
-      await load();
+      await load({ quiet: true });
     } catch (err) {
       setError(err.message);
     } finally {
       setBusy(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <div className="page-head">
+          <div>
+            <span className="page-kicker">Inventory</span>
+            <h1>Stock</h1>
+          </div>
+        </div>
+        <LoadingState
+          label="Loading stock board"
+          tips={["Counting units on hand…", "Fetching recent sales…"]}
+        />
+      </div>
+    );
   }
 
   return (

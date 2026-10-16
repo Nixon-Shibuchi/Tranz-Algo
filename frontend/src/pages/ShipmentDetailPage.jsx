@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import { useConfirm } from "../components/ConfirmDialog";
+import CsvImportButton from "../components/CsvImportButton";
+import LoadingState from "../components/LoadingState";
+import { mapShipmentLineRows } from "../csvImport";
 import { money, modeLabel } from "../format";
-import { LINE_COST_MODES } from "../costModes";
+import { DEFAULT_STARTER_FX_RATE, modeNeedsFx } from "../costModes";
+import { ledgerEventLabel } from "../ledgerFormat";
 
 export default function ShipmentDetailPage() {
   const { id } = useParams();
@@ -11,14 +15,14 @@ export default function ShipmentDetailPage() {
   const [batch, setBatch] = useState(null);
   const [products, setProducts] = useState([]);
   const [ledger, setLedger] = useState([]);
-  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [itemForm, setItemForm] = useState({
     product_id: "",
     quantity: "1",
     weight_kg: "",
-    line_cost_mode: "already_local",
     foreign_unit_price: "",
     local_unit_product_cost: "",
   });
@@ -30,26 +34,63 @@ export default function ShipmentDetailPage() {
     paperwork_source: "",
   });
 
-  async function load() {
-    const [b, p] = await Promise.all([api(`/shipments/${id}`), api("/products")]);
-    setBatch(b);
-    setProducts(p);
-    setCosts({
-      exchange_rate: b.exchange_rate ?? "",
-      shipping_total: b.shipping_total ?? "",
-      duty_total: b.duty_total ?? "",
-      vat_total: b.vat_total ?? "",
-      paperwork_source: b.paperwork_source ?? "",
-    });
+  async function load({ quiet = false } = {}) {
+    if (!quiet) setLoading(true);
     try {
-      setLedger(await api(`/shipments/${id}/ledger`));
-    } catch {
-      setLedger([]);
+      const [b, p] = await Promise.all([api(`/shipments/${id}`), api("/products")]);
+      setBatch(b);
+      setProducts(p);
+
+      let rate = b.exchange_rate;
+      // Auto FX: before Fetch FX, show last cached rate or starter 20
+      if (modeNeedsFx(b.primary_cost_mode) && (rate == null || rate === "")) {
+        const base = b.currency_foreign || "USD";
+        const quote = b.currency_local || "ZMW";
+        let seed = DEFAULT_STARTER_FX_RATE;
+        let source = "manual";
+        try {
+          const fx = await api(`/fx/rates?base=${base}&quote=${quote}&cache_only=true`);
+          seed = fx.rate;
+          source = "cache";
+        } catch {
+          /* no last fetch — keep starter 20 */
+        }
+        rate = seed;
+        try {
+          await api(`/shipments/${id}/costs`, {
+            method: "PUT",
+            body: JSON.stringify({ exchange_rate: seed, exchange_rate_source: source }),
+          });
+          b.exchange_rate = seed;
+          b.exchange_rate_source = source;
+          setBatch({ ...b });
+        } catch {
+          /* still show seed in the form */
+        }
+      }
+
+      setCosts({
+        exchange_rate: rate ?? "",
+        shipping_total: b.shipping_total ?? "",
+        duty_total: b.duty_total ?? "",
+        vat_total: b.vat_total ?? "",
+        paperwork_source: b.paperwork_source ?? "",
+      });
+      try {
+        setLedger(await api(`/shipments/${id}/ledger`));
+      } catch {
+        setLedger([]);
+      }
+    } finally {
+      if (!quiet) setLoading(false);
     }
   }
 
   useEffect(() => {
-    load().catch((e) => setError(e.message));
+    load().catch((e) => {
+      setError(e.message);
+      setLoading(false);
+    });
   }, [id]);
 
   async function addItem(e) {
@@ -64,6 +105,8 @@ export default function ShipmentDetailPage() {
     if (!confirmed) return;
     setError("");
     setOk("");
+    const lineMode =
+      batch?.primary_cost_mode === "auto_fx" ? "auto_fx" : "already_local";
     try {
       await api(`/shipments/${id}/items`, {
         method: "POST",
@@ -71,16 +114,25 @@ export default function ShipmentDetailPage() {
           product_id: Number(itemForm.product_id),
           quantity: Number(itemForm.quantity),
           weight_kg: itemForm.weight_kg ? Number(itemForm.weight_kg) : null,
-          line_cost_mode: itemForm.line_cost_mode,
-          foreign_unit_price: itemForm.foreign_unit_price
-            ? Number(itemForm.foreign_unit_price)
-            : null,
-          local_unit_product_cost: itemForm.local_unit_product_cost
-            ? Number(itemForm.local_unit_product_cost)
-            : null,
+          line_cost_mode: lineMode,
+          foreign_unit_price:
+            lineMode === "auto_fx" && itemForm.foreign_unit_price
+              ? Number(itemForm.foreign_unit_price)
+              : null,
+          local_unit_product_cost:
+            lineMode === "already_local" && itemForm.local_unit_product_cost
+              ? Number(itemForm.local_unit_product_cost)
+              : null,
         }),
       });
-      await load();
+      setItemForm({
+        product_id: "",
+        quantity: "1",
+        weight_kg: "",
+        foreign_unit_price: "",
+        local_unit_product_cost: "",
+      });
+      await load({ quiet: true });
     } catch (err) {
       setError(err.message);
     }
@@ -90,7 +142,10 @@ export default function ShipmentDetailPage() {
     e.preventDefault();
     const confirmed = await askConfirm({
       title: "Save costs?",
-      message: "Update shipping, duty, VAT, and exchange rate on this batch?",
+      message:
+        batch?.primary_cost_mode === "auto_fx"
+          ? "Update shipping, duty, VAT, and exchange rate on this batch?"
+          : "Update shipping, duty, and VAT on this batch?",
       confirmLabel: "Yes, save",
     });
     if (!confirmed) return;
@@ -108,7 +163,7 @@ export default function ShipmentDetailPage() {
           paperwork_source: costs.paperwork_source || null,
         }),
       });
-      await load();
+      await load({ quiet: true });
       setOk("Costs saved.");
     } catch (err) {
       setError(err.message);
@@ -136,34 +191,123 @@ export default function ShipmentDetailPage() {
           exchange_rate_source: fx.source,
         }),
       });
-      await load();
+      await load({ quiet: true });
       setOk(`FX rate saved: ${money(fx.rate)}`);
     } catch (err) {
       setError(err.message);
     }
   }
 
-  async function recheckMargins() {
-    const confirmed = await askConfirm({
-      title: "Recheck margins?",
-      message: "Run Margin-Guard against current landed costs and retail prices?",
-      confirmLabel: "Yes, recheck",
-    });
-    if (!confirmed) return;
+  async function importLinesCsv(text) {
     setError("");
     setOk("");
+    if (!text.trim()) {
+      setError("Could not read that CSV file.");
+      return;
+    }
+    const batchMode =
+      batch?.primary_cost_mode === "auto_fx" ? "auto_fx" : "already_local";
+    const { ready: mapped, errors } = mapShipmentLineRows(text, products, batchMode);
+    // Mode was chosen once on the shipment — ignore any mode column in the CSV.
+    const ready = mapped.map((row) => ({ ...row, line_cost_mode: batchMode }));
+    if (!ready.length) {
+      setError(
+        errors[0] ||
+          (batchMode === "auto_fx"
+            ? "No line rows found. Need sku, qty, and foreign_unit (USD)."
+            : "No line rows found. Need sku, qty, and local_unit (ZMW).")
+      );
+      return;
+    }
+    const preview = ready
+      .slice(0, 5)
+      .map((r) => `${r.__sku} ×${r.quantity}`)
+      .join("; ");
+    const more = ready.length > 5 ? ` … +${ready.length - 5} more` : "";
+    const warn = errors.length ? ` ${errors.length} row(s) skipped.` : "";
+    const confirmed = await askConfirm({
+      title: `Import ${ready.length} line(s)?`,
+      message: `${preview}${more}.${warn}`,
+      confirmLabel: "Yes, import",
+    });
+    if (!confirmed) return;
+    setImporting(true);
+    let okCount = 0;
+    const fail = [...errors];
     try {
-      const res = await api(`/shipments/${id}/margin-guard/recheck`, { method: "POST" });
-      setAlerts(res.alerts || []);
-      setLedger(await api(`/shipments/${id}/ledger`));
-    } catch (err) {
-      setError(err.message);
+      for (const row of ready) {
+        const { __row, __sku, ...payload } = row;
+        try {
+          await api(`/shipments/${id}/items`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          okCount += 1;
+        } catch (err) {
+          fail.push(`Row ${__row} (${__sku}): ${err.message}`);
+        }
+      }
+      await load({ quiet: true });
+      if (okCount) setOk(`Imported ${okCount} line(s) from CSV.`);
+      if (fail.length) setError(fail.slice(0, 4).join(" · "));
+    } finally {
+      setImporting(false);
     }
   }
 
-  if (!batch) return <p className="pad">Loading shipment…</p>;
+  if (loading || !batch) {
+    return (
+      <div>
+        <div className="page-head">
+          <div>
+            <span className="page-kicker">Shipment</span>
+            <h1>Opening batch</h1>
+          </div>
+        </div>
+        {error && <p className="error">{error}</p>}
+        <LoadingState
+          label="Loading shipment"
+          tips={["Fetching lines and costs…", "Preparing paperwork fields…"]}
+        />
+      </div>
+    );
+  }
 
   const locked = batch.status === "committed";
+  const isAutoFx = batch.primary_cost_mode === "auto_fx";
+  const needsFx = modeNeedsFx(batch.primary_cost_mode);
+
+  const historyRows = (() => {
+    const rows = ledger.filter((r) => r.event_type !== "margin_alert");
+    const landed = rows.filter((r) => r.event_type === "landed_cost");
+    const rest = rows.filter((r) => r.event_type !== "landed_cost");
+    const out = [];
+    if (landed.length === 1) {
+      const item = batch.items.find((i) => i.id === landed[0].batch_item_id);
+      const prod = item ? products.find((p) => p.id === item.product_id) : null;
+      out.push({
+        key: `l-${landed[0].id}`,
+        created_at: landed[0].created_at,
+        label: ledgerEventLabel(landed[0], prod),
+      });
+    } else if (landed.length > 1) {
+      out.push({
+        key: `l-group-${landed[0].id}`,
+        created_at: landed[0].created_at,
+        label: `Landed costs recorded (${landed.length} lines)`,
+      });
+    }
+    for (const row of rest) {
+      const item = batch.items.find((i) => i.id === row.batch_item_id);
+      const prod = item ? products.find((p) => p.id === item.product_id) : null;
+      out.push({
+        key: `e-${row.id}`,
+        created_at: row.created_at,
+        label: ledgerEventLabel(row, prod),
+      });
+    }
+    return out;
+  })();
 
   return (
     <div>
@@ -205,10 +349,12 @@ export default function ShipmentDetailPage() {
             <span>Local currency</span>
             <strong>{batch.currency_local || "ZMW"}</strong>
           </div>
-          <div>
-            <span>Foreign currency</span>
-            <strong>{batch.currency_foreign || "—"}</strong>
-          </div>
+          {needsFx && (
+            <div>
+              <span>Foreign currency</span>
+              <strong>{batch.currency_foreign || "—"}</strong>
+            </div>
+          )}
           <div>
             <span>Origin</span>
             <strong>{batch.origin_country || "—"}</strong>
@@ -228,18 +374,42 @@ export default function ShipmentDetailPage() {
         </div>
       </div>
 
+      {importing && (
+        <LoadingState
+          label="Importing"
+          tips={["Adding lines from CSV…", "Remote database can take a moment…"]}
+        />
+      )}
       {error && <p className="error">{error}</p>}
       {ok && <p className="success">{ok}</p>}
 
       {!locked && (
         <form className="card form-grid" onSubmit={addItem}>
-          <h2>Add item</h2>
+          <div className="span-2 table-head" style={{ margin: 0, padding: 0, border: "none" }}>
+            <h2 style={{ margin: 0 }}>Add item</h2>
+            <CsvImportButton
+              label="Import lines CSV"
+              hint={
+                isAutoFx
+                  ? "Columns: sku, qty, foreign_unit, optional weight_kg"
+                  : "Columns: sku, qty, local_unit, optional weight_kg"
+              }
+              disabled={products.length === 0}
+              busy={importing}
+              onText={importLinesCsv}
+            />
+          </div>
           {products.length === 0 ? (
             <p className="span-2 muted">
-              No products yet. <Link to="/products">Products</Link>
+              No products yet. <Link to="/products">Products</Link> (or import a products CSV there
+              first).
             </p>
           ) : (
             <>
+              <p className="span-2 muted" style={{ marginTop: 0 }}>
+                This shipment is locked to <strong>{modeLabel(batch.primary_cost_mode)}</strong>{" "}
+                (chosen when it was created). Lines and CSV imports use that mode.
+              </p>
               <label>
                 Product
                 <select
@@ -270,37 +440,29 @@ export default function ShipmentDetailPage() {
                   onChange={(e) => setItemForm({ ...itemForm, weight_kg: e.target.value })}
                 />
               </label>
-              <label>
-                Line mode
-                <select
-                  value={itemForm.line_cost_mode}
-                  onChange={(e) => setItemForm({ ...itemForm, line_cost_mode: e.target.value })}
-                >
-                  {LINE_COST_MODES.map((mode) => (
-                    <option key={mode.id} value={mode.id}>
-                      {mode.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Foreign unit price
-                <input
-                  value={itemForm.foreign_unit_price}
-                  onChange={(e) =>
-                    setItemForm({ ...itemForm, foreign_unit_price: e.target.value })
-                  }
-                />
-              </label>
-              <label>
-                Local unit product cost (ZMW)
-                <input
-                  value={itemForm.local_unit_product_cost}
-                  onChange={(e) =>
-                    setItemForm({ ...itemForm, local_unit_product_cost: e.target.value })
-                  }
-                />
-              </label>
+              {isAutoFx ? (
+                <label>
+                  Foreign unit price ({batch.currency_foreign || "USD"})
+                  <input
+                    required
+                    value={itemForm.foreign_unit_price}
+                    onChange={(e) =>
+                      setItemForm({ ...itemForm, foreign_unit_price: e.target.value })
+                    }
+                  />
+                </label>
+              ) : (
+                <label>
+                  Local unit product cost (ZMW)
+                  <input
+                    required
+                    value={itemForm.local_unit_product_cost}
+                    onChange={(e) =>
+                      setItemForm({ ...itemForm, local_unit_product_cost: e.target.value })
+                    }
+                  />
+                </label>
+              )}
               <button className="btn primary span-2" style={{ width: "fit-content" }}>
                 Add item
               </button>
@@ -322,7 +484,7 @@ export default function ShipmentDetailPage() {
               <tr>
                 <th>Product</th>
                 <th>Qty</th>
-                <th>Mode</th>
+                {isAutoFx ? <th>Foreign unit</th> : null}
                 <th>Local unit</th>
                 <th>Ship share</th>
                 <th>Duty</th>
@@ -346,7 +508,7 @@ export default function ShipmentDetailPage() {
                       )}
                     </td>
                     <td>{i.quantity}</td>
-                    <td>{modeLabel(i.line_cost_mode)}</td>
+                    {isAutoFx ? <td>{money(i.foreign_unit_price)}</td> : null}
                     <td>{money(i.local_unit_product_cost)}</td>
                     <td>{money(i.shipping_share)}</td>
                     <td>{money(i.duty_amount)}</td>
@@ -364,18 +526,24 @@ export default function ShipmentDetailPage() {
       {!locked && (
         <form className="card form-grid" onSubmit={saveCosts}>
           <h2>Costs</h2>
-          <div className="span-2 field-with-action">
-            <label>
-              Exchange rate ({batch.currency_foreign || "USD"} → ZMW)
-              <input
-                value={costs.exchange_rate}
-                onChange={(e) => setCosts({ ...costs, exchange_rate: e.target.value })}
-              />
-            </label>
-            <button type="button" className="btn" onClick={fetchFx}>
-              Fetch FX
-            </button>
-          </div>
+          {needsFx ? (
+            <div className="span-2 field-with-action">
+              <label>
+                Exchange rate ({batch.currency_foreign || "USD"} → ZMW)
+                <input
+                  value={costs.exchange_rate}
+                  onChange={(e) => setCosts({ ...costs, exchange_rate: e.target.value })}
+                />
+                <span className="form-field-hint">
+                  Starts at {DEFAULT_STARTER_FX_RATE} or the last fetched rate. Use Fetch FX for a
+                  live rate (demo oracle often uses 27.50).
+                </span>
+              </label>
+              <button type="button" className="btn" onClick={fetchFx}>
+                Fetch FX
+              </button>
+            </div>
+          ) : null}
           <label>
             Shipping total (ZMW)
             <input
@@ -416,8 +584,8 @@ export default function ShipmentDetailPage() {
           <h2>Landed cost &amp; pricing</h2>
           <p className="muted">
             {locked
-              ? "See the full cost build-up and price ladder for this committed batch."
-              : "Allocate shipping, duty and VAT, then set a safe retail price in the True Cost studio."}
+              ? "See the cost build-up for this committed batch. Cost history below shows how retail was set."
+              : "Allocate shipping, duty and VAT, then set retail in True Cost. After you commit, a short cost history appears here."}
           </p>
         </div>
         <Link className="btn primary" to={`/true-cost/${batch.id}`}>
@@ -425,67 +593,34 @@ export default function ShipmentDetailPage() {
         </Link>
       </div>
 
-      <div className="card">
-        <div className="table-head">
-          <h2>Margin-Guard</h2>
-          <button type="button" className="btn" onClick={recheckMargins}>
-            Recheck
-          </button>
-        </div>
-        {alerts.length === 0 ? (
-          <p className="muted empty-state">No alerts.</p>
-        ) : (
-          <ul className="result-list">
-            {alerts.map((a, idx) => {
-              const product = products.find((p) => p.id === a.product_id);
-              return (
-                <li key={idx}>
-                  <div className="result-title">
-                    {product ? `${product.sku} — ${product.name}` : `Product #${a.product_id}`}
-                  </div>
-                  <div className="result-detail">
-                    Active {money(a.active_retail_price)} below floor {money(a.floor)} (landed{" "}
-                    {money(a.landed_unit_cost)}).
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      <div className="card table-wrap">
-        <div className="table-head">
-          <h2>True-Cost Ledger</h2>
-          <span className="muted">{ledger.length} event(s)</span>
-        </div>
-        {ledger.length === 0 ? (
-          <p className="muted empty-state">No ledger events yet.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>When</th>
-                <th>Event</th>
-                <th>Detail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ledger.map((row) => (
-                <tr key={row.id}>
-                  <td>{new Date(row.created_at).toLocaleString()}</td>
-                  <td>{row.event_type}</td>
-                  <td>
-                    <code className="ledger-detail" title={JSON.stringify(row.payload_json)}>
-                      {JSON.stringify(row.payload_json)}
-                    </code>
-                  </td>
+      {locked ? (
+        <div className="card table-wrap">
+          <div className="table-head">
+            <h2>Cost history</h2>
+            <span className="muted">{historyRows.length} note(s)</span>
+          </div>
+          {historyRows.length === 0 ? (
+            <p className="muted empty-state">No history for this batch yet.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>When</th>
+                  <th>What happened</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody>
+                {historyRows.map((row) => (
+                  <tr key={row.key}>
+                    <td>{new Date(row.created_at).toLocaleString()}</td>
+                    <td>{row.label}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

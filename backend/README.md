@@ -7,8 +7,8 @@ FastAPI API for landed-cost inventory orchestration (working MVP).
 
 ## What’s implemented
 
-- Auth (JWT), products, tax profiles, shipments (costs, allocate, suggest, commit, ledger)
-- FX (Frankfurter + fallback + manual), Margin-Guard recheck
+- Auth (JWT), products, shipments (costs, allocate, suggest, commit, ledger)
+- FX (Frankfurter + fallback + manual); optional safety-floor API (UI uses Cost history)
 - Inventory list + **Record sale**, admin reset-business-data
 - Costing tests for worked examples
 
@@ -27,6 +27,27 @@ uvicorn app.main:app --reload --port 8000
 
 Open docs: http://127.0.0.1:8000/docs
 
+## Database (PostgreSQL)
+
+**Recommended:** Postgres via Docker Compose (repo root):
+
+```powershell
+cd ..
+docker compose up -d
+```
+
+Then in `backend/.env`:
+
+```text
+DATABASE_URL=postgresql+psycopg://tranzalgo:tranzalgo@127.0.0.1:5432/tranzalgo
+```
+
+Restart uvicorn. On first startup the API runs `create_all` and creates all tables.
+
+- `postgres://…` and `postgresql://…` URLs are normalized to `postgresql+psycopg://…`
+- SQLite fallback: `DATABASE_URL=sqlite:///./tranzalgo.db` (no Docker needed)
+- Local Windows Postgres works with the same URL if you create user/db `tranzalgo` / password `tranzalgo`
+
 ## Tests
 
 ```powershell
@@ -35,4 +56,3 @@ cd backend
 pytest -q
 ```
 
-Default DB is SQLite (`tranzalgo.db`). For Postgres/Supabase, set `DATABASE_URL` in `.env`.

@@ -130,7 +130,6 @@ def add_item(
         foreign_unit_price=payload.foreign_unit_price,
         local_unit_product_cost=payload.local_unit_product_cost,
         line_cost_mode=payload.line_cost_mode,
-        tax_profile_id=payload.tax_profile_id or product.tax_profile_id,
     )
     db.add(item)
     batch.status = "draft"

@@ -29,12 +29,6 @@ const ICONS = {
       <path d="M4 9l8 4 8-4M12 13v10" />
     </svg>
   ),
-  tax: (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75">
-      <path d="M7 4h7l3 3v13H7V4Z" />
-      <path d="M14 4v3h3M9 12h6M9 16h4" />
-    </svg>
-  ),
   truecost: (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.75">
       <path d="M3 20V14M8.5 20V9M14 20v-7.5M19.5 20V4" strokeLinecap="round" />
@@ -65,11 +59,6 @@ export const NAV_SECTIONS = [
       { to: "/shipments", label: "Shipments", icon: "shipments", match: "prefix" },
       { to: "/inventory", label: "Stock", icon: "stock" },
     ],
-  },
-  {
-    id: "setup",
-    label: "Setup",
-    items: [{ to: "/tax-profiles", label: "Tax profiles", icon: "tax" }],
   },
 ];
 
@@ -129,7 +118,6 @@ const CRUMBS = [
     ],
   },
   { test: (p) => p === "/inventory", label: "Stock" },
-  { test: (p) => p === "/tax-profiles", label: "Tax profiles" },
 ];
 
 export function Breadcrumbs() {

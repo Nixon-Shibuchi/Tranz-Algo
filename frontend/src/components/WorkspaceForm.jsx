@@ -1,4 +1,4 @@
-import { COST_MODES } from "../costModes";
+import { PRIMARY_COST_MODES } from "../costModes";
 
 export function FormPanel({ kicker, title, hint, children, onSubmit }) {
   return (
@@ -87,7 +87,7 @@ export function FormActions({ children }) {
 export function ModeCards({ value, onChange, name = "primary_cost_mode" }) {
   return (
     <div className="mode-cards span-2" role="radiogroup" aria-label="Primary cost mode">
-      {COST_MODES.map((mode) => {
+      {PRIMARY_COST_MODES.map((mode) => {
         const active = value === mode.id;
         return (
           <label
