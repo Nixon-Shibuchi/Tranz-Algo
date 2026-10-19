@@ -273,21 +273,26 @@ export default function ProductsPage() {
     });
     if (!confirmed) return;
     setImporting(true);
-    let okCount = 0;
-    const fail = [...errors];
     try {
-      for (const row of ready) {
-        const { __row, ...payload } = row;
-        try {
-          await api("/products", { method: "POST", body: JSON.stringify(payload) });
-          okCount += 1;
-        } catch (err) {
-          fail.push(`Row ${__row}: ${err.message}`);
-        }
+      const items = ready.map(({ __row, ...payload }) => payload);
+      const result = await api("/products/bulk", {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      });
+      const fail = [...errors, ...(result.errors || [])];
+      const created = result.created || [];
+      // Merge locally — avoids a second full catalogue fetch over Supabase
+      if (created.length) {
+        setProducts((prev) => {
+          const byId = new Map(prev.map((p) => [p.id, p]));
+          for (const p of created) byId.set(p.id, p);
+          return [...byId.values()].sort((a, b) => a.sku.localeCompare(b.sku));
+        });
       }
-      await load({ quiet: true });
-      if (okCount) setOk(`Imported ${okCount} product(s) from CSV.`);
+      if (created.length) setOk(`Imported ${created.length} product(s) from CSV.`);
       if (fail.length) setError(fail.slice(0, 4).join(" · "));
+    } catch (err) {
+      setError(err.message);
     } finally {
       setImporting(false);
     }

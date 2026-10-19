@@ -67,13 +67,13 @@ def draw_architecture():
     # Presentation
     ax.add_patch(Rectangle((0.4, 4.6), 9.2, 1.5, fill=False, linestyle="--", edgecolor=TEAL, linewidth=1.6))
     ax.text(0.55, 5.85, "Presentation tier", fontsize=10, color=TEAL, fontweight="bold")
-    _box(ax, 2.8, 4.85, 4.4, 0.95, "React SPA (Vite)\nAuth · Products · Shipments\nTrue Cost · Stock · Dashboard", fc=NAVY, fontsize=10)
+    _box(ax, 2.8, 4.85, 4.4, 0.95, "React frontend (Vite)\nAuth · Products · Shipments\nTrue Cost · Stock · Dashboard", fc=NAVY, fontsize=10)
 
     # Application
     ax.add_patch(Rectangle((0.4, 2.35), 9.2, 1.85, fill=False, linestyle="--", edgecolor=TEAL, linewidth=1.6))
     ax.text(0.55, 3.95, "Application tier", fontsize=10, color=TEAL, fontweight="bold")
     _box(ax, 0.7, 2.6, 3.6, 1.1, "FastAPI  /api/v1\nJWT routers", fc=TEAL, fontsize=10.5)
-    _box(ax, 5.0, 2.6, 4.2, 1.1, "Services\nFacade · Strategy · FX chain", fc=TEAL, fontsize=10.5)
+    _box(ax, 5.0, 2.6, 4.2, 1.1, "Services\nCosting · shipment workflow · FX", fc=TEAL, fontsize=10)
     _arrow(ax, 4.35, 3.15, 5.0, 3.15)
 
     # Data

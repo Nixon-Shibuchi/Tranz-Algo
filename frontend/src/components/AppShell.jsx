@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { Logo } from "./Brand";
+import { useConfirm } from "./ConfirmDialog";
 import ThemeSwitcher from "./ThemeSwitcher";
 import { Breadcrumbs, SideNav } from "./Navigation";
 import DoodleBackdrop from "./Doodles";
@@ -17,6 +18,7 @@ export default function AppShell({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [askConfirm, confirmDialog] = useConfirm();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [desktopNavOpen, setDesktopNavOpen] = useState(readSidebarOpen);
   const drawerTitleId = useId();
@@ -57,9 +59,16 @@ export default function AppShell({ children }) {
     setDesktopNavOpen(false);
   }
 
-  function signOut() {
+  async function signOut() {
+    const confirmed = await askConfirm({
+      title: "Sign out?",
+      message: "Are you sure you want to sign out of Tranz-Algo?",
+      confirmLabel: "Yes, sign out",
+      cancelLabel: "Stay signed in",
+    });
+    if (!confirmed) return;
     logout();
-    navigate("/login");
+    navigate("/welcome");
   }
 
   const sidebar = (
@@ -111,6 +120,7 @@ export default function AppShell({ children }) {
         !desktopNavOpen ? " sidebar-collapsed" : ""
       }`}
     >
+      {confirmDialog}
       <DoodleBackdrop className="app-doodles" />
       <a href="#main-content" className="skip-link">
         Skip to content

@@ -8,7 +8,7 @@ Tolerance: **≤ 0.01 ZMW** on money fields.
 | # | File | Batch | Allocation | Purpose |
 |---|---|---|---|---|
 | 1 | [scenario_01_already_local.md](./scenario_01_already_local.md) | `SHP-DEMO-LOCAL-ZMW` | Quantity | Already-Local oracle |
-| 2 | [scenario_02_auto_fx.md](./scenario_02_auto_fx.md) | `SHP-DEMO-AUTO-FX` | Weight | Auto FX oracle (@27.50) |
+| 2 | [scenario_02_auto_fx.md](./scenario_02_auto_fx.md) | `SHP-DEMO-AUTO-FX` | Weight | Auto FX oracle (@20) |
 | 3 | [scenario_03_allocation_compare.md](./scenario_03_allocation_compare.md) | Demo A | Qty vs weight | Comparator sensitivity |
 | 4 | [scenario_04_margin_guard.md](./scenario_04_margin_guard.md) | Demo A | — | Safety floor on True Cost |
 | 5 | [scenario_05_ui_demo_batch.md](./scenario_05_ui_demo_batch.md) | A + B | Qty + weight | Classroom UI path |

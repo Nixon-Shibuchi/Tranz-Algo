@@ -6,6 +6,7 @@ University of Zambia 2026 report template structure.
 from pathlib import Path
 
 from docx import Document
+from docx.enum.section import WD_SECTION_START
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
 from docx.enum.table import WD_TABLE_ALIGNMENT
 from docx.oxml import OxmlElement
@@ -24,11 +25,12 @@ FIGURE_WIDTH = Inches(6.1)
 
 OUT_DIR = Path(__file__).resolve().parent
 FIG_DIR = OUT_DIR / "figures"
+SHOT_DIR = FIG_DIR / "screenshots"
 LOGO_TRANZ = FIG_DIR / "tranzalgo_logo.png"
 LOGO_UNZA = FIG_DIR / "unza_logo.png"
 
 # Fill computer numbers / supervisor before final submission if known
-SUPERVISOR = "[SUPERVISOR NAME]"
+SUPERVISOR = "Mrs. Leena Kumar"
 DEGREE = "Bachelor of Science in Computer Science"
 SUBMISSION_DATE = "October 2026"
 # Shared source repository (submitted evidence; each student files their own Word report)
@@ -133,14 +135,43 @@ def configure_print_styles(doc):
         st._element.rPr.rFonts.set(qn("w:eastAsia"), "Times New Roman")
 
 
-def add_page_number(section):
+def _clear_paragraph(p):
+    for child in list(p._element):
+        p._element.remove(child)
+
+
+def configure_section_geometry(section):
+    section.page_width = Cm(21.0)  # A4
+    section.page_height = Cm(29.7)
+    section.top_margin = Cm(2.54)
+    section.bottom_margin = Cm(2.54)
+    section.left_margin = Cm(2.54)
+    section.right_margin = Cm(2.54)
+
+
+def set_page_number_format(section, *, fmt="decimal", start=None):
+    """fmt: decimal | lowerRoman | upperRoman."""
+    sectPr = section._sectPr
+    for child in list(sectPr):
+        if child.tag == qn("w:pgNumType"):
+            sectPr.remove(child)
+    pgNumType = OxmlElement("w:pgNumType")
+    pgNumType.set(qn("w:fmt"), fmt)
+    if start is not None:
+        pgNumType.set(qn("w:start"), str(start))
+    sectPr.append(pgNumType)
+
+
+def add_page_number(section, *, prefix=""):
+    """Centered PAGE field in the section footer (unlink from previous)."""
     footer = section.footer
     footer.is_linked_to_previous = False
     p = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+    _clear_paragraph(p)
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.first_line_indent = Cm(0)
-    run = p.add_run("Page ")
-    set_run_font(run, size=10)
+    if prefix:
+        set_run_font(p.add_run(prefix), size=10)
     fld1 = OxmlElement("w:fldChar")
     fld1.set(qn("w:fldCharType"), "begin")
     instr = OxmlElement("w:instrText")
@@ -148,11 +179,11 @@ def add_page_number(section):
     instr.text = " PAGE "
     fld2 = OxmlElement("w:fldChar")
     fld2.set(qn("w:fldCharType"), "end")
-    run2 = p.add_run()
-    run2._r.append(fld1)
-    run2._r.append(instr)
-    run2._r.append(fld2)
-    set_run_font(run2, size=10)
+    run = p.add_run()
+    run._r.append(fld1)
+    run._r.append(instr)
+    run._r.append(fld2)
+    set_run_font(run, size=10)
 
 
 def add_para(doc, text, *, size=BODY_SIZE, bold=False, italic=False, align=None, space_after=10, first_line=True):
@@ -248,6 +279,111 @@ def add_table(doc, headers, rows, caption=None):
 
 def page_break(doc):
     doc.add_page_break()
+
+
+def add_toc_entry(doc, text, *, level=1):
+    """Printable TOC line (indent by heading level; no invented page numbers)."""
+    p = doc.add_paragraph()
+    p.paragraph_format.first_line_indent = Cm(0)
+    p.paragraph_format.left_indent = Cm(0.5 * (level - 1))
+    p.paragraph_format.space_after = Pt(4)
+    p.paragraph_format.space_before = Pt(2 if level == 1 else 0)
+    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+    set_run_font(p.add_run(text), size=BODY_SIZE, bold=(level == 1))
+
+
+def build_table_of_contents(doc):
+    """Static table of contents matching report headings (visible when printed)."""
+    add_heading_styled(doc, "TABLE OF CONTENTS", 1)
+    entries = [
+        (1, "DECLARATION"),
+        (1, "APPROVAL"),
+        (1, "ABSTRACT"),
+        (1, "ACKNOWLEDGEMENTS"),
+        (1, "NOTE ON GROUP PROJECTS"),
+        (1, "LIST OF ABBREVIATIONS AND ACRONYMS"),
+        (1, "Chapter 1  Introduction"),
+        (2, "1.1 Background and Context"),
+        (2, "1.2 Problem Statement"),
+        (2, "1.3 Project Aim"),
+        (2, "1.4 Project Objectives"),
+        (2, "1.5 Research Questions"),
+        (2, "1.6 Scope of the Project"),
+        (2, "1.7 Significance of the Project"),
+        (2, "1.8 Limitations"),
+        (2, "1.9 Organisation of the Report"),
+        (1, "Chapter 2  Literature Review"),
+        (2, "2.1 Introduction"),
+        (2, "2.2 Key Concepts and Theories"),
+        (2, "2.3 Existing Systems / Related Work"),
+        (2, "2.4 Comparative Analysis"),
+        (2, "2.5 Research / Knowledge Gap"),
+        (2, "2.6 Conceptual Framework"),
+        (2, "2.7 Chapter Summary"),
+        (1, "Chapter 3  Methodology"),
+        (2, "3.1 Introduction"),
+        (2, "3.2 Research / Development Approach"),
+        (2, "3.3 Requirements / Data Collection"),
+        (2, "3.4 System Architecture / Research Workflow"),
+        (2, "3.5 Tools and Technologies"),
+        (2, "3.6 Ethical and Legal Considerations"),
+        (2, "3.7 Evaluation Method"),
+        (2, "3.8 Chapter Summary"),
+        (1, "Chapter 4  System Analysis and Design"),
+        (2, "4.1 Introduction"),
+        (2, "4.2 Stakeholder and User Analysis"),
+        (2, "4.3 Functional Requirements"),
+        (2, "4.4 Non-Functional Requirements"),
+        (2, "4.5 Use Cases / User Stories"),
+        (2, "4.6 System / Solution Architecture"),
+        (2, "4.7 Database / Data Design"),
+        (2, "4.8 Interface / Interaction Design"),
+        (2, "4.9 Algorithms / Models / Technical Design"),
+        (2, "4.10 Chapter Summary"),
+        (1, "Chapter 5  Implementation / Development"),
+        (2, "5.1 Introduction"),
+        (2, "5.2 Development Environment"),
+        (2, "5.3 System Components / Modules"),
+        (2, "5.4 Key Implementation Details"),
+        (2, "5.5 Integration"),
+        (2, "5.6 Challenges and Solutions"),
+        (2, "5.7 Individual Contribution (group projects)"),
+        (2, "5.8 Chapter Summary"),
+        (1, "Chapter 6  Testing, Results and Evaluation"),
+        (2, "6.1 Introduction"),
+        (2, "6.2 Testing Strategy"),
+        (2, "6.3 Test Cases and Results"),
+        (2, "6.4 Experimental Results"),
+        (2, "6.5 User Evaluation"),
+        (2, "6.6 Analysis of Results"),
+        (2, "6.7 Objective-by-Objective Evaluation"),
+        (2, "6.8 Individual Results"),
+        (2, "6.9 Chapter Summary"),
+        (1, "Chapter 7  Discussion"),
+        (2, "7.1 Introduction"),
+        (2, "7.2 Interpretation of Findings"),
+        (2, "7.3 Comparison with Existing Work"),
+        (2, "7.4 Contributions of the Project"),
+        (2, "7.5 Limitations and Implications"),
+        (2, "7.6 Chapter Summary"),
+        (1, "Chapter 8  Conclusion and Recommendations"),
+        (2, "8.1 Introduction"),
+        (2, "8.2 Summary of the Project"),
+        (2, "8.3 Conclusions"),
+        (2, "8.4 Achievement of Objectives"),
+        (2, "8.5 Recommendations"),
+        (2, "8.6 Future Work"),
+        (1, "REFERENCES"),
+        (1, "Appendix A  Individual Contribution Statement"),
+        (2, "A.1 Project and Group Information"),
+        (2, "A.2 Overall Group Project"),
+        (2, "A.3 Individual Role and Responsibilities"),
+        (2, "A.4 Collaboration and Co-author Work"),
+        (1, "Appendix B  User Manual / Installation Guide (summary)"),
+    ]
+    for level, text in entries:
+        add_toc_entry(doc, text, level=level)
+    page_break(doc)
 
 
 def add_centered_picture(doc, path, width=Inches(1.45)):
@@ -496,10 +632,10 @@ def chapter_1(doc):
     add_para(
         doc,
         "Auto FX seeds the rate at **20** (or the last fetched cache) until the user clicks Fetch FX "
-        "or types a rate. Live FX varies; spreadsheet/pytest oracles for Demo B therefore pin **27.50** "
-        "for reproducibility — that is an evaluation rate, not the UI starter. Value-based allocation "
-        "exists in the engine but is not primary in the UI. The MVP assumes honest paperwork totals "
-        "and does not replace clearing agents.",
+        "or types a rate. Demo B spreadsheet/pytest oracles use the same **20** so the UI starter and "
+        "evaluation rate match. Live Fetch FX may differ; keep 20 for the frozen demo. Value-based "
+        "allocation exists in the engine but is not primary in the UI. The MVP assumes honest paperwork "
+        "totals and does not replace clearing agents.",
     )
 
     add_heading_styled(doc, "1.9 Organisation of the Report", 2)
@@ -613,7 +749,7 @@ def chapter_3(doc):
     add_heading_styled(doc, "3.4 System Architecture / Research Workflow", 2)
     add_para(
         doc,
-        "Architecture is three-tier: React SPA → FastAPI /api/v1 → PostgreSQL (SQLite fallback), with "
+        "Architecture is three-tier: React frontend → FastAPI /api/v1 → PostgreSQL (SQLite fallback), with "
         "optional FX providers. The True Cost workflow is allocate → suggest/adjust → commit → Cost history.",
     )
     add_figure(doc, FIG_DIR / "architecture.png", "Figure 3.1: System architecture used in the methodology")
@@ -690,7 +826,7 @@ def chapter_4(doc):
 
     add_heading_styled(doc, "4.5 Use Cases / User Stories", 2)
     add_bullet(doc, "As an admin, I import Demo A CSV and cost an Already-Local grocery batch.")
-    add_bullet(doc, "As an admin, I open Auto FX (rate starts at 20 / last cache), Fetch FX or set 27.50 for the oracle, and cost by weight.")
+    add_bullet(doc, "As an admin, I open Auto FX at rate 20 (CSV / UI starter), allocate by weight, and cost Demo B.")
     add_bullet(doc, "As an admin, I review Cost history after commit and record a sale that reduces stock.")
 
     add_heading_styled(doc, "4.6 System / Solution Architecture", 2)
@@ -713,12 +849,52 @@ def chapter_4(doc):
     add_heading_styled(doc, "4.8 Interface / Interaction Design", 2)
     add_para(
         doc,
-        "The UI is a React SPA with Welcome, Login/Create account, Dashboard, Products, Shipments "
+        "The UI is a React frontend with Welcome, Login/Create account, Dashboard, Products, Shipments "
         "(CSV import, Clear drafts), Shipment detail (Fetch FX), True Cost studio (Lines → Allocate → "
         "Price → Commit), Stock, and Cost history (When / What). Themes and a closable sidebar support "
-        "desk use.",
+        "desk use. Figures 4.4–4.8 are as-built screenshots of the working MVP.",
     )
     add_figure(doc, FIG_DIR / "true_cost_workflow.png", "Figure 4.3: True Cost interaction flow")
+
+    # As-built UI screenshots (from docs/Screenshots/)
+    ui_shots = [
+        (
+            "ui_dashboard.png",
+            "Figure 4.4: Dashboard — stock and shipment overview with Start fresh and Open True Cost",
+            "The Dashboard summarises units available, low/out counts, draft versus committed batches, "
+            "and a short on-the-shelf list so the administrator can see status before opening True Cost.",
+        ),
+        (
+            "ui_products.png",
+            "Figure 4.5: Products — catalogue entry form and CSV import",
+            "Products supports manual create (optional auto SKU) and Import CSV for demo catalogues. "
+            "Optional details are folded away to keep the primary form short.",
+        ),
+        (
+            "ui_shipments.png",
+            "Figure 4.6: Shipments — create batch with dual cost mode (Already-Local / Auto FX)",
+            "Primary cost mode is chosen once when the shipment is created; later lines and CSV imports "
+            "follow that mode. Clear drafts and Import shipment CSV sit in the page actions.",
+        ),
+        (
+            "ui_true_cost_pricing.png",
+            "Figure 4.7: True Cost — Step 2 retail suggestion with margin slider and safety floor",
+            "After allocation, the administrator drags profit margin; suggested retail prices update live. "
+            "The red mark is the safety floor (10% above landed unit cost).",
+        ),
+        (
+            "ui_stock.png",
+            "Figure 4.8: Stock — available / low / out board with Record sale",
+            "Stock shows units on hand by SKU with retail context and a Record sale action that reduces "
+            "quantity without becoming a full POS.",
+        ),
+    ]
+    for filename, caption, blurb in ui_shots:
+        path = SHOT_DIR / filename
+        if not path.exists():
+            continue
+        add_para(doc, blurb)
+        add_figure(doc, path, caption)
 
     add_heading_styled(doc, "4.9 Algorithms / Models / Technical Design", 2)
     add_para(doc, "Auto FX product local = foreign_unit_price × exchange_rate.", first_line=False)
@@ -782,7 +958,7 @@ def chapter_5(doc, author):
     add_heading_styled(doc, "5.5 Integration", 2)
     add_para(
         doc,
-        "The SPA calls JSON APIs with Bearer JWT. SQLAlchemy maps models to PostgreSQL/SQLite. FX "
+        "The React frontend calls JSON APIs with Bearer JWT. SQLAlchemy maps models to PostgreSQL/SQLite. FX "
         "providers are chained with fallback. CSV import parses demo samples into products and shipments.",
     )
 
@@ -821,7 +997,7 @@ def chapter_6(doc, author):
         ["ID", "Test case", "Expected", "Status"],
         [
             ["TC-01", "Already-Local Demo A qty oracles", "Landed/RP within ±0.01", "PASS"],
-            ["TC-02", "Auto FX Demo B (UI starts 20; oracle @27.50)", "Landed/RP within ±0.01", "PASS"],
+            ["TC-02", "Auto FX Demo B (rate 20)", "Landed/RP within ±0.01", "PASS"],
             ["TC-03", "Allocation compare Demo A", "Qty vs weight deltas match arithmetic", "PASS"],
             ["TC-04", "Safety floor on True Cost", "RICE floor 187; warn if below", "PASS"],
             ["TC-05", "CSV UI path (Scenario 05)", "Same batches via import", "PASS"],
@@ -834,8 +1010,8 @@ def chapter_6(doc, author):
     add_para(
         doc,
         "Demo A (SHP-DEMO-LOCAL-ZMW) locks grocery landed costs such as 170 / 107 / 160 / 120 / 93 with "
-        "30% suggested retail. Demo B (SHP-DEMO-AUTO-FX) opens with rate starter **20** (or last cache); "
-        "oracle numbers use **27.50** and lock weight-based landed costs including earbud retail 226.56. "
+        "30% suggested retail. Demo B (SHP-DEMO-AUTO-FX) uses FX rate **20** (UI starter = oracle) and "
+        "locks weight-based landed costs 136.25 / 145 / 46.25 / 92.50 (earbud suggested retail 170.31). "
         "CI fixtures in backend/tests/test_costing.py encode these oracles.",
     )
 
@@ -1045,17 +1221,17 @@ def appendix_b(doc):
 def build_one(author):
     doc = Document()
     configure_print_styles(doc)
-    section = doc.sections[0]
-    section.page_width = Cm(21.0)   # A4
-    section.page_height = Cm(29.7)
-    section.top_margin = Cm(2.54)
-    section.bottom_margin = Cm(2.54)
-    section.left_margin = Cm(2.54)
-    section.right_margin = Cm(2.54)
-    add_page_number(section)
+
+    # Section 1 — front matter: lower-case Roman numerals (cover has no footer number)
+    front = doc.sections[0]
+    configure_section_geometry(front)
+    front.different_first_page_header_footer = True
+    set_page_number_format(front, fmt="lowerRoman", start=1)
+    add_page_number(front, prefix="")  # i, ii, iii …
 
     build_cover(doc, author)
     build_front_matter(doc, author)
+    build_table_of_contents(doc)
     add_heading_styled(doc, "LIST OF ABBREVIATIONS AND ACRONYMS", 1)
     add_table(
         doc,
@@ -1069,13 +1245,18 @@ def build_one(author):
             ["MVP", "Minimum Viable Product"],
             ["POS", "Point of Sale"],
             ["SME", "Small and Medium-sized Enterprise"],
-            ["SPA", "Single-Page Application"],
             ["UI", "User Interface"],
             ["VAT", "Value Added Tax"],
             ["ZMW", "Zambian Kwacha"],
         ],
     )
-    page_break(doc)
+
+    # Section 2 — body from Chapter 1: Arabic numerals restarting at 1
+    body = doc.add_section(WD_SECTION_START.NEW_PAGE)
+    configure_section_geometry(body)
+    body.different_first_page_header_footer = False
+    set_page_number_format(body, fmt="decimal", start=1)
+    add_page_number(body, prefix="")  # 1, 2, 3 …
 
     chapter_1(doc)
     page_break(doc)

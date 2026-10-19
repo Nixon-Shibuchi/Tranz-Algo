@@ -9,6 +9,8 @@ from app.db.session import get_db
 from app.models import BatchItem, LedgerEntry, Product, ShipmentBatch, User
 from app.schemas import (
     AllocateRequest,
+    BatchItemBulkCreate,
+    BatchItemBulkResult,
     BatchItemCreate,
     BatchItemOut,
     BatchItemUpdate,
@@ -16,6 +18,8 @@ from app.schemas import (
     CostsUpdate,
     LedgerOut,
     ShipmentCreate,
+    ShipmentImportRequest,
+    ShipmentImportResult,
     ShipmentOut,
     ShipmentUpdate,
     SuggestRequest,
@@ -69,6 +73,67 @@ def create_shipment(
     return _get_batch(db, batch.id)
 
 
+def _add_item_row(db: Session, batch: ShipmentBatch, payload: BatchItemCreate) -> BatchItem:
+    product = db.get(Product, payload.product_id)
+    if not product:
+        raise ValueError(f"Product not found: id={payload.product_id}")
+    weight = payload.weight_kg
+    if weight is None and product.default_weight_kg is not None:
+        weight = float(product.default_weight_kg) * float(payload.quantity)
+    item = BatchItem(
+        batch_id=batch.id,
+        product_id=payload.product_id,
+        quantity=payload.quantity,
+        weight_kg=weight,
+        foreign_unit_price=payload.foreign_unit_price,
+        local_unit_product_cost=payload.local_unit_product_cost,
+        line_cost_mode=payload.line_cost_mode,
+    )
+    db.add(item)
+    return item
+
+
+@router.post("/import", response_model=ShipmentImportResult)
+def import_shipment(
+    payload: ShipmentImportRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Create shipment + costs + all lines in one request (full CSV import)."""
+    header = payload.shipment
+    if db.scalars(select(ShipmentBatch).where(ShipmentBatch.reference == header.reference)).first():
+        raise HTTPException(status_code=400, detail="Reference already exists")
+    data = header.model_dump()
+    data["currency_local"] = "ZMW"
+    batch = ShipmentBatch(**data, created_by=user.id, status="draft")
+    db.add(batch)
+    db.flush()
+
+    if payload.costs is not None:
+        cost_data = payload.costs.model_dump(exclude_unset=True)
+        for key, value in cost_data.items():
+            setattr(batch, key, value)
+        if payload.costs.exchange_rate is not None and payload.costs.exchange_rate_source is None:
+            batch.exchange_rate_source = "manual"
+            batch.exchange_rate_at = datetime.now(timezone.utc)
+
+    errors: list[str] = []
+    created = 0
+    for i, item_payload in enumerate(payload.items, start=1):
+        try:
+            _add_item_row(db, batch, item_payload)
+            created += 1
+        except ValueError as exc:
+            errors.append(f"Line {i}: {exc}")
+
+    db.commit()
+    return ShipmentImportResult(
+        shipment=_get_batch(db, batch.id),
+        items_created=created,
+        errors=errors,
+    )
+
+
 @router.get("/{batch_id}", response_model=ShipmentOut)
 def get_shipment(
     batch_id: int,
@@ -116,26 +181,38 @@ def add_item(
 ):
     batch = _get_batch(db, batch_id)
     _ensure_draftish(batch)
-    product = db.get(Product, payload.product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    weight = payload.weight_kg
-    if weight is None and product.default_weight_kg is not None:
-        weight = float(product.default_weight_kg) * float(payload.quantity)
-    item = BatchItem(
-        batch_id=batch_id,
-        product_id=payload.product_id,
-        quantity=payload.quantity,
-        weight_kg=weight,
-        foreign_unit_price=payload.foreign_unit_price,
-        local_unit_product_cost=payload.local_unit_product_cost,
-        line_cost_mode=payload.line_cost_mode,
-    )
-    db.add(item)
+    try:
+        item = _add_item_row(db, batch, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     batch.status = "draft"
     db.commit()
     db.refresh(item)
     return item
+
+
+@router.post("/{batch_id}/items/bulk", response_model=BatchItemBulkResult)
+def add_items_bulk(
+    batch_id: int,
+    payload: BatchItemBulkCreate,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+):
+    """Add many lines in one DB round trip (lines CSV import)."""
+    batch = _get_batch(db, batch_id)
+    _ensure_draftish(batch)
+    created: list[BatchItem] = []
+    errors: list[str] = []
+    for i, item_payload in enumerate(payload.items, start=1):
+        try:
+            created.append(_add_item_row(db, batch, item_payload))
+        except ValueError as exc:
+            errors.append(f"Line {i}: {exc}")
+    batch.status = "draft"
+    db.commit()
+    for item in created:
+        db.refresh(item)
+    return BatchItemBulkResult(created=created, errors=errors)
 
 
 @router.put("/{batch_id}/items/{item_id}", response_model=BatchItemOut)

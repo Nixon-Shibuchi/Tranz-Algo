@@ -22,9 +22,9 @@
 |---|---|
 | Reference | `SHP-DEMO-AUTO-FX` |
 | CSV | `samples/shipment_B_full.csv` |
-| FX | Starts at **20** (or last fetched) → Fetch FX or set **27.50** for oracle |
+| FX | **20** (CSV / UI starter; keep 20 for oracle) |
 | Allocation | Weight · margin **0.25** |
-| Landed @27.50 | **181.25 / 175 / 57.50 / 115** |
+| Landed @20 | **136.25 / 145 / 46.25 / 92.50** |
 
 ---
 

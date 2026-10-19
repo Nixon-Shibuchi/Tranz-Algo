@@ -76,6 +76,15 @@ class ProductOut(ORMModel):
     active_retail_price: float | None
 
 
+class ProductBulkCreate(BaseModel):
+    items: list[ProductCreate] = Field(min_length=1)
+
+
+class ProductBulkResult(BaseModel):
+    created: list[ProductOut]
+    errors: list[str] = []
+
+
 # Shipments
 class ShipmentCreate(BaseModel):
     reference: str
@@ -183,6 +192,28 @@ class CostsUpdate(BaseModel):
     duty_total: float | None = None
     vat_total: float | None = None
     paperwork_source: str | None = None
+
+
+class BatchItemBulkCreate(BaseModel):
+    items: list[BatchItemCreate] = Field(min_length=1)
+
+
+class BatchItemBulkResult(BaseModel):
+    created: list[BatchItemOut]
+    errors: list[str] = []
+
+
+class ShipmentImportRequest(BaseModel):
+    """Create shipment + optional costs + all lines in one round trip (CSV path)."""
+    shipment: ShipmentCreate
+    costs: CostsUpdate | None = None
+    items: list[BatchItemCreate] = Field(min_length=1)
+
+
+class ShipmentImportResult(BaseModel):
+    shipment: ShipmentOut
+    items_created: int
+    errors: list[str] = []
 
 
 class AllocateRequest(BaseModel):

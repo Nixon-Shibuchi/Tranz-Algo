@@ -67,7 +67,7 @@ def test_demo_a_quantity_already_local():
 
 
 def test_demo_b_weight_auto_fx():
-    """SHP-DEMO-AUTO-FX — Scenario 02 / samples/shipment_B_full.csv @ 27.50"""
+    """SHP-DEMO-AUTO-FX — Scenario 02 / samples/shipment_B_full.csv @ starter rate 20"""
     items = [
         {
             "id": 1,
@@ -102,13 +102,22 @@ def test_demo_b_weight_auto_fx():
         items,
         method="weight",
         shipping_total=2800,
-        exchange_rate=27.5,
+        exchange_rate=20,
         batch_duty_total=700,
         batch_vat_total=1050,
     )
     by_id = {r["item_id"]: r for r in results}
-    assert by_id[1]["landed_unit_cost"] == 181.25
-    assert by_id[2]["landed_unit_cost"] == 175.00
-    assert by_id[3]["landed_unit_cost"] == 57.50
-    assert by_id[4]["landed_unit_cost"] == 115.00
-    assert money(181.25 * 1.25) == 226.56
+    assert by_id[1]["landed_unit_cost"] == 136.25
+    assert by_id[2]["landed_unit_cost"] == 145.00
+    assert by_id[3]["landed_unit_cost"] == 46.25
+    assert by_id[4]["landed_unit_cost"] == 92.50
+    assert money(136.25 * 1.25) == 170.31
+
+    suggested = suggest_prices(
+        [(r["item_id"], r["landed_unit_cost"]) for r in results], 0.25
+    )
+    s = {x["item_id"]: x["suggested_retail_price"] for x in suggested}
+    assert s[1] == 170.31
+    assert s[2] == 181.25
+    assert s[3] == 57.81
+    assert s[4] == 115.63

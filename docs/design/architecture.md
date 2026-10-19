@@ -11,7 +11,7 @@
 ```mermaid
 flowchart TB
   subgraph client [Presentation tier]
-    UI[React SPA Vite]
+    UI[React frontend Vite]
   end
   subgraph api [Application tier]
     FastAPI["FastAPI /api/v1"]

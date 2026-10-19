@@ -6,8 +6,9 @@ Generated from the University of Zambia **2026** templates using as-built Tranz-
 |---|---|
 | [Tranz-Algo_Final_Year_Project_Report_2026_Nixon_Shibuchi.docx](./Tranz-Algo_Final_Year_Project_Report_2026_Nixon_Shibuchi.docx) | Individual report for Nixon (cover logos + Appendix A) |
 | [Tranz-Algo_Final_Year_Project_Report_2026_Musonda_Katongo.docx](./Tranz-Algo_Final_Year_Project_Report_2026_Musonda_Katongo.docx) | Individual report for Musonda (cover logos + Appendix A) |
-| [Tranz-Algo_Final_Year_Project_Presentation_2026.pptx](./Tranz-Algo_Final_Year_Project_Presentation_2026.pptx) | 16-slide deck (same order as UNZA template; diagrams fitted) |
+| [Tranz-Algo_Final_Year_Project_Presentation_2026.pptx](./Tranz-Algo_Final_Year_Project_Presentation_2026.pptx) | 17-slide deck (includes “What is Tranz-Algo?” intro; diagrams fitted) |
 | [figures/](./figures/) | Architecture, ERD, dual modes, True Cost workflow PNGs |
+| [figures/screenshots/](./figures/screenshots/) | As-built UI screenshots used in §4.8 (from `docs/Screenshots/`) |
 
 ## What you submit
 
@@ -27,9 +28,7 @@ Open the PPTX in Slide Show once to confirm ERD / architecture stay readable at 
 
 ## Before you submit
 
-1. Computer numbers are set (Nixon `2021437361`, Musonda `2020583969`). Fill **supervisor name** in:
-   - `build_report.py` (`SUPERVISOR`)
-   - `build_presentation.py` (`SUPERVISOR`)
+1. Computer numbers and supervisor are set (Nixon `2021437361`, Musonda `2020583969`, **Mrs. Leena Kumar**).
 2. Confirm `REPO_URL` in `build_report.py` matches the public/shareable repo examiners should open.
 3. Re-run the builders (below).
 4. Skim the Word report for personal acknowledgements / signatures.

@@ -245,5 +245,5 @@ This is a **pre-commit** guard while adjusting margin/retail. After commit, use 
 
 ## 6. Unit-test seeds
 
-CI fixtures in `backend/tests/test_costing.py` lock the **demo shipments** (`SHP-DEMO-LOCAL-ZMW` quantity, `SHP-DEMO-AUTO-FX` weight @ 27.50).  
+CI fixtures in `backend/tests/test_costing.py` lock the **demo shipments** (`SHP-DEMO-LOCAL-ZMW` quantity, `SHP-DEMO-AUTO-FX` weight @ 20).  
 Examples A/B above remain report worked examples of the same formulas. See `docs/scenarios/`.

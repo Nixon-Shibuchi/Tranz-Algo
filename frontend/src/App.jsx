@@ -24,7 +24,8 @@ function PrivateRoute({ children }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  // Guests land on the welcome intro, not login
+  if (!user) return <Navigate to="/welcome" replace />;
   return <AppShell>{children}</AppShell>;
 }
 

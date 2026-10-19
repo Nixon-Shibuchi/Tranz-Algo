@@ -17,7 +17,7 @@ Tolerance: absolute difference ≤ **0.01** ZMW.
 | Scenario | Check | Result |
 |---|---|---|
 | 01 Already-Local qty | Landed 170 / 107 / 160 / 120 / 93; RP @30% 221 / 139.10 / 208 / 156 / 120.90 | **PASS** (`pytest`) |
-| 02 Auto FX weight | @27.50 landed 181.25 / 175 / 57.50 / 115; EARBUD RP 226.56 | **PASS** (`pytest`) |
+| 02 Auto FX weight | @20 landed 136.25 / 145 / 46.25 / 92.50; EARBUD RP 170.31 | **PASS** (`pytest`) |
 | 03 Comparator | Demo A qty vs weight deltas (rice ↑, soap/tea ↓) | **PASS** (manual arithmetic; UI compare) |
 | 04 Safety floor | RICE floor 187; margin&lt;10% warns on True Cost | **PASS** (formula + pricing-time UI) |
 | 05 UI demos | Same batches via CSV import path | **PASS** (hand-checked vs samples) |
@@ -33,7 +33,7 @@ Tolerance: absolute difference ≤ **0.01** ZMW.
 
 - Full UI click-through should be re-confirmed before viva on a clean database (**Start fresh** / **Clear drafts**).  
 - Value-based allocation remains stretch.  
-- Live FX rates vary; Scenario 02 uses fixed **27.50** for reproducibility.
+- Live FX rates vary; Scenario 02 uses fixed **20** (UI starter / CSV) for reproducibility.
 
 ## Conclusion
 

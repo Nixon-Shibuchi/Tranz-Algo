@@ -33,7 +33,7 @@ Operator and viva guidance is in **Word documents** under [`docs/viva/`](docs/vi
 CSV samples: [`docs/scenarios/samples/`](docs/scenarios/samples/). Regenerate docs: `python docs/viva/build_viva_docs.py`.
 
 **Quick demo:** Import `products_demo.csv` → `shipment_A_full.csv` / `shipment_B_full.csv` → True Cost → allocate → commit.  
-References: `SHP-DEMO-LOCAL-ZMW` (qty, margin 0.30) and `SHP-DEMO-AUTO-FX` (weight; rate starts at 20 / last fetched, then Fetch FX or 27.50 for oracle).
+References: `SHP-DEMO-LOCAL-ZMW` (qty, margin 0.30) and `SHP-DEMO-AUTO-FX` (weight; FX rate **20** for the demo oracle — same as UI starter).
 
 ---
 

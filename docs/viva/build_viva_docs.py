@@ -107,7 +107,7 @@ def build_tech_and_qa():
     rows = [
         ("Backend", "Python + FastAPI", "Python + FastAPI (same)"),
         ("Auth", "JWT", "JWT (same)"),
-        ("Frontend", "React Native / Expo", "React (Vite) web SPA"),
+        ("Frontend", "React Native / Expo", "React frontend (Vite)"),
         (
             "Database",
             "PostgreSQL (Supabase)",
@@ -132,9 +132,95 @@ def build_tech_and_qa():
                 for run in p.runs:
                     set_run_font(run, size=10)
 
-    add_heading(doc, "3. Justification for the deviations (said properly)", 1)
+    add_heading(doc, "3. Frameworks used in this project (plain English)", 1)
+    add_para(
+        doc,
+        "A framework is a ready-made structure you build on (not the business formulas themselves). "
+        "In Tranz-Algo each piece has a clear job in the three-tier design.",
+    )
 
-    add_heading(doc, "3.1 Why React web instead of React Native / Expo", 2)
+    add_heading(doc, "3.1 Backend frameworks / libraries", 2)
+    add_bullet(
+        doc,
+        "Python web framework that exposes REST endpoints under /api/v1 (auth, products, shipments, "
+        "FX, inventory, admin). Routers stay thin; they call services for costing and commit. "
+        "Also gives automatic OpenAPI docs at /docs for checking the API.",
+        "FastAPI — ",
+    )
+    add_bullet(
+        doc,
+        "ASGI server that actually runs the FastAPI app (uvicorn … :8000). It is the process that "
+        "listens for HTTP from the React frontend.",
+        "Uvicorn — ",
+    )
+    add_bullet(
+        doc,
+        "data shapes and validation for request/response bodies (create shipment, costs, True Cost "
+        "payloads). Bad numbers or missing fields fail early with clear errors instead of corrupting "
+        "the database.",
+        "Pydantic — ",
+    )
+    add_bullet(
+        doc,
+        "Object-Relational Mapper: Python classes in models/ map to PostgreSQL (or SQLite) tables "
+        "(users, products, shipment batches, lines, ledger, FxRateCache, stock). Session/engine live "
+        "in db/session.py; the app does not write raw SQL for normal flows.",
+        "SQLAlchemy 2 — ",
+    )
+    add_bullet(
+        doc,
+        "login tokens after Create account / Login. The React app stores the token and sends "
+        "Authorization: Bearer … on API calls so only signed-in admins can cost and commit.",
+        "JWT (python-jose) — ",
+    )
+    add_bullet(
+        doc,
+        "password hashing for user accounts (never store plain passwords).",
+        "bcrypt / passlib — ",
+    )
+
+    add_heading(doc, "3.2 Frontend frameworks / libraries", 2)
+    add_bullet(
+        doc,
+        "UI library for the admin screens (Welcome, Login, Dashboard, Products, Shipments, "
+        "True Cost, Stock). Pages are components; state updates when you allocate, change margin, "
+        "or commit — without full browser reloads.",
+        "React — ",
+    )
+    add_bullet(
+        doc,
+        "build / dev tool that serves the React app in development (npm run dev, port 5173) and "
+        "bundles it for production. Fast refresh while coding the UI.",
+        "Vite — ",
+    )
+    add_bullet(
+        doc,
+        "client-side navigation between screens (/welcome, /products, /shipments/:id, /true-cost, …) "
+        "inside the same React app.",
+        "React Router — ",
+    )
+
+    add_heading(doc, "3.3 Data store (not a framework, but say it with the stack)", 2)
+    add_bullet(
+        doc,
+        "primary relational database for the MVP (local install or Docker). Holds all business data.",
+        "PostgreSQL — ",
+    )
+    add_bullet(
+        doc,
+        "optional fallback file DB when Postgres is offline so demos still run.",
+        "SQLite — ",
+    )
+    add_para(
+        doc,
+        "Viva one-liner: “React + Vite for the admin UI; FastAPI + Pydantic + SQLAlchemy for the API "
+        "and persistence; JWT for auth; Postgres stores the data; our Python services hold the costing rules.”",
+        italic=True,
+    )
+
+    add_heading(doc, "4. Justification for the deviations (said properly)", 1)
+
+    add_heading(doc, "4.1 Why React web instead of React Native / Expo", 2)
     add_bullet(
         doc,
         "The project aim is true landed cost, price suggestion, and batch inventory — not mobile UX.",
@@ -162,7 +248,7 @@ def build_tech_and_qa():
         "Future work: ",
     )
 
-    add_heading(doc, "3.2 Database: PostgreSQL now, SQLite as fallback", 2)
+    add_heading(doc, "4.2 Database: PostgreSQL now, SQLite as fallback", 2)
     add_bullet(
         doc,
         "we run a real relational server locally (Windows PostgreSQL or Docker Compose) so the data layer matches the proposal’s Postgres story.",
@@ -184,7 +270,7 @@ def build_tech_and_qa():
         "Honest framing: ",
     )
 
-    add_heading(doc, "3.3 Why FX is “on demand” not a live tick stream", 2)
+    add_heading(doc, "4.3 Why FX is “on demand” not a live tick stream", 2)
     add_para(
         doc,
         "Import costing needs a trustworthy rate at decision time (when you save costs / allocate), "
@@ -192,13 +278,43 @@ def build_tech_and_qa():
         "override, is appropriate for SME paperwork workflows and handles API downtime.",
     )
 
-    add_heading(doc, "3.4 What NOT to say", 2)
+    add_heading(doc, "4.4 Why FxRateCache is a standalone entity (ERD)", 2)
+    add_para(
+        doc,
+        "On the ERD, FxRateCache has no foreign key to ShipmentBatch. That is deliberate.",
+    )
+    add_bullet(
+        doc,
+        "Two different jobs: FxRateCache stores the last known market/API (or manual) rate for a "
+        "currency pair (e.g. USD→ZMW). The shipment stores the rate that was applied to that batch’s "
+        "costing (exchange_rate, exchange_rate_source, exchange_rate_at on ShipmentBatch).",
+    )
+    add_bullet(
+        doc,
+        "Reuse: one cached rate can seed many Auto FX shipments. If FX lived only inside a shipment row, "
+        "every new batch would start empty and Fetch FX would be forced even when last-known-good exists.",
+    )
+    add_bullet(
+        doc,
+        "Audit / freeze: after you save costs on a shipment, that batch keeps its own rate. Updating the "
+        "cache later must not silently rewrite committed or draft shipment math.",
+    )
+    add_bullet(
+        doc,
+        "Already-Local shipments never need FX — so FX should not be required as a child of every shipment.",
+    )
+    add_bullet(
+        doc,
+        "Viva one-liner: “FX cache is market memory; the shipment holds the decision rate for that import.”",
+    )
+
+    add_heading(doc, "4.5 What NOT to say", 2)
     add_bullet(doc, "“We didn’t know React Native.”")
     add_bullet(doc, "“The AI built a web app instead.”")
     add_bullet(doc, "“Supabase was too hard.” (prefer: local Postgres first; cloud URL when needed)")
     add_bullet(doc, "“The proposal was wrong.” (prefer: refined after requirements clarity)")
 
-    add_heading(doc, "4. Likely viva questions and model answers", 1)
+    add_heading(doc, "5. Likely viva questions and model answers", 1)
 
     add_heading(doc, "A. Problem & contribution", 2)
     add_qa(
@@ -224,6 +340,16 @@ def build_tech_and_qa():
     add_heading(doc, "B. Technology & architecture", 2)
     add_qa(
         doc,
+        "Explain the frameworks you used and what each does in this project.",
+        "React + Vite: admin UI screens and fast local frontend builds. React Router: move between "
+        "Welcome, Products, Shipments, True Cost, Stock without full page reloads. FastAPI: REST "
+        "API (/api/v1) that the UI calls. Pydantic: validates JSON bodies (shipments, costs, pricing). "
+        "SQLAlchemy: maps models to PostgreSQL/SQLite tables. Uvicorn: runs the API process. "
+        "JWT + bcrypt: sign-in and hashed passwords. Costing formulas live in our Python services — "
+        "not inside the frameworks. See Section 3 of this document for the full list.",
+    )
+    add_qa(
+        doc,
         "Why FastAPI?",
         "Python fits the costing math and testing; FastAPI gives a clear REST API with OpenAPI docs, "
         "validation via Pydantic, and easy JWT dependency injection — good for a three-tier academic MVP.",
@@ -243,9 +369,18 @@ def build_tech_and_qa():
     add_qa(
         doc,
         "Explain your architecture.",
-        "React SPA talks to FastAPI under /api/v1 with JWT. Domain logic for allocate/suggest/commit lives "
-        "in services (Facade + Strategy for allocation and cost modes). SQLAlchemy persists products, "
-        "shipments, ledger, sales, and FX cache to PostgreSQL.",
+        "Three tiers: React frontend (screens) → FastAPI /api/v1 with JWT (HTTP) → services that do the real work "
+        "(costing, shipment workflow, FX) → PostgreSQL (SQLite fallback). The diagram’s “Services” box is just "
+        "the business logic — not the database and not the UI.",
+    )
+    add_qa(
+        doc,
+        "The architecture slide used to say Facade and Strategy — what does that mean in plain English?",
+        "Those are design-pattern names for how the services are organised (optional to say on the slide). "
+        "Facade = one shipment workflow file that runs allocate → suggest → commit so the API stays thin. "
+        "Strategy = interchangeable rules for “how to split costs” (quantity/weight) and “how to get unit cost” "
+        "(Already-Local vs Auto FX), instead of a long if/else. FX providers are tried in a chain until one works. "
+        "Full file map: Tranz-Algo_Code_Map_and_Design_Principles.docx.",
     )
     add_qa(
         doc,
@@ -253,6 +388,15 @@ def build_tech_and_qa():
         "Strategy and Factory for allocation methods and line-cost modes; Chain of Responsibility for FX "
         "providers; Facade for shipment workflow; Template Method in landed-cost computation. Documented "
         "alongside Lehman’s laws and GRASP in docs/design/software_engineering_principles.md.",
+    )
+    add_qa(
+        doc,
+        "Why is FxRateCache standalone on the ERD (not linked to a shipment)?",
+        "Because a market rate and a shipment’s costing rate are different things. FxRateCache is shared "
+        "“last known good” for a currency pair (Fetch FX / failover / seed next Auto FX batch). Each "
+        "ShipmentBatch copies or sets its own exchange_rate fields when costs are saved, so later cache "
+        "updates do not rewrite that batch. Already-Local shipments skip FX entirely, so FX must not be "
+        "a required child of every shipment.",
     )
 
     add_heading(doc, "C. Domain / formulas", 2)
@@ -305,7 +449,7 @@ def build_tech_and_qa():
         doc,
         "How did you evaluate correctness?",
         "We froze the costing formulas, built spreadsheet oracles for Demo A (Already-Local) and Demo B "
-        "(Auto FX @ 27.50), then checked the engine with pytest (tolerance 0.01 ZMW) and replayed the "
+        "(Auto FX @ 20), then checked the engine with pytest (tolerance 0.01 ZMW) and replayed the "
         "same batches in the UI via CSV import. Scenario tables: docs/scenarios/. Demo handouts: "
         "Tranz-Algo_Demo_Shipment_Data.docx and How_to_Use_the_App.docx in this viva folder.",
     )
@@ -422,10 +566,16 @@ def build_presentation_coach():
     add_heading(doc, "Minute 5–7 · Architecture (keep light)", 2)
     add_para(
         doc,
-        "Draw or show: Browser (React) → FastAPI /api/v1 → PostgreSQL (SQLite fallback). "
-        "Mention Strategy for allocation/cost modes and Facade for allocate/suggest/commit. "
+        "Show the three-tier diagram and say only: “Browser (React + Vite) talks to FastAPI; "
+        "Pydantic validates inputs; SQLAlchemy talks to PostgreSQL; our services do costing.” "
+        "If asked to explain frameworks: use Section 3 of the Technology Q&A doc. Do not lead with pattern names. "
+        "If a panelist asks what Facade/Strategy mean: “Facade is the one workflow that allocates, prices, "
+        "and commits; Strategy means we can swap quantity vs weight (or Already-Local vs Auto FX) without "
+        "rewriting the whole app.” Details are in the Code Map viva doc. "
         "If asked about React Native in the proposal: use the justification sentence from the Q&A document. "
-        "If asked about Supabase: “We run Postgres locally; DATABASE_URL can point to cloud.”",
+        "If asked about Supabase: “We run Postgres locally; DATABASE_URL can point to cloud.” "
+        "If asked why FxRateCache is standalone on the ERD: “It is market memory for USD→ZMW; each "
+        "shipment keeps its own applied rate so later Fetch FX does not rewrite that batch’s costing.”",
     )
 
     add_heading(doc, "Minute 7–11 · Live demo (most important)", 2)
@@ -441,8 +591,8 @@ def build_presentation_coach():
     add_bullet(doc, "True Cost: quantity → margin 0.30 → commit. Landed e.g. 170 / 107 / 160 / 120 / 93.")
     add_para(doc, "Demo B — Auto FX (Fetch FX)", bold=True, space_after=4)
     add_bullet(doc, "Import shipment_B_full.csv.")
-    add_bullet(doc, "SHP-DEMO-AUTO-FX → rate starts 20 (or last fetch) → Fetch FX or set 27.50 → costs 2800 / 700 / 1050.")
-    add_bullet(doc, "True Cost: weight → margin 0.25 → commit. @27.50 → 181.25 / 175 / 57.50 / 115.")
+    add_bullet(doc, "SHP-DEMO-AUTO-FX → rate 20 (CSV / starter) → costs 2800 / 700 / 1050.")
+    add_bullet(doc, "True Cost: weight → margin 0.25 → commit. @20 → 136.25 / 145 / 46.25 / 92.50.")
 
     add_heading(doc, "Minute 11–12 · Evaluation, limits, close", 2)
     add_bullet(doc, "pytest / spreadsheet oracle within 0.01 ZMW.")
@@ -509,7 +659,7 @@ def build_presentation_coach():
     add_bullet(doc, "Demo Word handout printed or open on a second screen.")
     add_bullet(doc, "Browser zoom readable on projector; Day theme for visibility.")
     add_bullet(doc, "Backup: screenshots or short screen recording if Wi‑Fi/API fails.")
-    add_bullet(doc, "Demo A works fully offline; Demo B can use manual 27.50 if Fetch FX fails.")
+    add_bullet(doc, "Demo A works fully offline; Demo B keeps rate 20 if Fetch FX fails or is skipped.")
 
     add_heading(doc, "6. How to speak (delivery coaching)", 1)
     add_bullet(doc, "Open with the problem, not the tech stack.")
@@ -660,7 +810,7 @@ def build_how_to_use_app():
 
     add_heading(doc, "4. Cost modes & taxes (say this in viva)", 1)
     add_bullet(doc, "Already-Local: paste local product units from shipper/agent paperwork.")
-    add_bullet(doc, "Auto FX: foreign unit prices × rate (Fetch FX or manual, e.g. 27.50).")
+    add_bullet(doc, "Auto FX: foreign unit prices × rate (starter / CSV 20; optional Fetch FX).")
     add_bullet(doc, "Duty/VAT = clearing paperwork totals on the shipment — we allocate them; we do not assess ZRA legally.")
     add_bullet(doc, "Status: draft → costed (after allocate) → committed (locked).")
 
@@ -676,11 +826,11 @@ def build_how_to_use_app():
     add_bullet(doc, "Expected landed ≈ 170 / 107 / 160 / 120 / 93")
     add_bullet(
         doc,
-        "Import shipment_B_full.csv (SHP-DEMO-AUTO-FX). Rate starts at 20 or last fetched. "
-        "Fetch FX (or type 27.50 for the oracle) → True Cost → weight → margin 0.25 → commit.",
+        "Import shipment_B_full.csv (SHP-DEMO-AUTO-FX). Keep rate 20 (CSV / UI starter). "
+        "True Cost → weight → margin 0.25 → commit.",
         "Demo B: ",
     )
-    add_bullet(doc, "Expected landed @27.50 ≈ 181.25 / 175 / 57.50 / 115")
+    add_bullet(doc, "Expected landed @20 ≈ 136.25 / 145 / 46.25 / 92.50")
     add_bullet(doc, "Open a committed shipment → Cost history (When / What).")
 
     add_heading(doc, "6. Useful buttons", 1)
@@ -787,7 +937,7 @@ def build_demo_handout():
     doc.add_heading("Demo B — Auto FX (phone parts)", level=1)
     doc.add_paragraph(
         "USD invoice from China. Rate starts at 20 (or last fetched). Click Fetch FX for live, "
-        "or type 27.50 for the oracle numbers below. Then allocate by weight → commit."
+        "keep rate 20 for the oracle numbers below. Then allocate by weight → commit."
     )
     doc.add_heading("Products", level=2)
     add_table(
@@ -828,7 +978,7 @@ def build_demo_handout():
         doc,
         ["Field", "Value"],
         [
-            ["Exchange rate", "Starts 20 / last fetched → Fetch FX (oracle: 27.50)"],
+            ["Exchange rate", "20 (CSV / UI starter = demo oracle)"],
             ["Shipping", "2800"],
             ["Duty", "700"],
             ["VAT", "1050"],
@@ -841,16 +991,16 @@ def build_demo_handout():
         ["Setting", "Value"],
         [["Allocation", "weight (14 kg)"], ["Margin", "0.25"]],
     )
-    doc.add_heading("Expected if rate = 27.50", level=2)
-    doc.add_paragraph("Shares per kg: ship 200 + duty 50 + VAT 75 = 325")
+    doc.add_heading("Expected at rate = 20", level=2)
+    doc.add_paragraph("Local unit = foreign × 20. Shares per kg: ship 200 + duty 50 + VAT 75 = 325")
     add_table(
         doc,
         ["SKU", "Local unit", "Landed unit", "Suggested ×1.25"],
         [
-            ["EARBUD", "165.00", "181.25", "226.56"],
-            ["CHARGER", "110.00", "175.00", "218.75"],
-            ["CABLE", "41.25", "57.50", "71.88"],
-            ["CASE-SOFT", "82.50", "115.00", "143.75"],
+            ["EARBUD", "120.00", "136.25", "170.31"],
+            ["CHARGER", "80.00", "145.00", "181.25"],
+            ["CABLE", "30.00", "46.25", "57.81"],
+            ["CASE-SOFT", "60.00", "92.50", "115.63"],
         ],
     )
 
@@ -860,7 +1010,7 @@ def build_demo_handout():
         "2. Shipments → Clear drafts if needed → Import shipment_A_full.csv → True Cost → quantity → commit."
     )
     doc.add_paragraph(
-        "3. Shipments → Import shipment_B_full.csv → Fetch FX (or 27.50) → True Cost → weight → commit."
+        "3. Shipments → Import shipment_B_full.csv → keep rate 20 → True Cost → weight → commit."
     )
     doc.add_paragraph("4. Open a committed shipment → Cost history (When / What).")
 
@@ -995,6 +1145,196 @@ def build_contribution_split():
     return path
 
 
+def build_code_map_and_principles():
+    """Brief map: where main features live + how design patterns appear in code."""
+    doc = Document()
+
+    title = doc.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = title.add_run("Tranz-Algo — Code Map & Design Principles in Code")
+    set_run_font(r, size=16, bold=True)
+
+    sub = doc.add_paragraph()
+    sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r = sub.add_run(
+        "Brief viva sheet · where the important code is · how patterns show up\n"
+        "Nixon Shibuchi · Musonda Katongo · University of Zambia"
+    )
+    set_run_font(r, size=11, italic=True)
+
+    add_para(
+        doc,
+        "One sentence: routers handle HTTP; services hold business rules; React pages call the API. "
+        "Do not claim you memorised every file — point to the layer and the pattern.",
+        italic=True,
+        size=10,
+    )
+
+    add_heading(doc, "1. Frameworks → role in Tranz-Algo", 1)
+    add_table(
+        doc,
+        ["Piece", "What it is", "What it does here"],
+        [
+            ["React + Vite", "UI library + frontend build tool", "Admin screens; Vite serves/builds the React app"],
+            ["React Router", "In-app navigation", "Routes between Welcome, Products, Shipments, True Cost, Stock"],
+            ["FastAPI", "Python REST framework", "/api/v1 endpoints; thin routers → services"],
+            ["Uvicorn", "API process / ASGI server", "Runs FastAPI so the browser can call it"],
+            ["Pydantic", "Schema / validation", "Checks JSON bodies (shipments, costs, pricing)"],
+            ["SQLAlchemy 2", "ORM", "Python models ↔ PostgreSQL/SQLite tables"],
+            ["JWT + bcrypt", "Auth helpers", "Login tokens; hashed passwords"],
+            ["PostgreSQL", "Primary database", "Persists users, products, shipments, ledger, FX cache"],
+        ],
+    )
+    add_para(
+        doc,
+        "Costing rules are our code (services/costing.py, strategies/), not “inside” React or FastAPI.",
+        italic=True,
+        size=10,
+    )
+
+    add_heading(doc, "2. Layer layout (whole system)", 1)
+    add_table(
+        doc,
+        ["Layer", "Folder", "Job"],
+        [
+            ["UI", "frontend/src/pages/", "Screens (True Cost, Shipments, Products, Stock…)"],
+            ["UI shared", "frontend/src/costModes.js, api.js, csvImport.js", "Mode labels, HTTP client, CSV helpers"],
+            ["HTTP API", "backend/app/api/v1/", "Thin endpoints: auth, products, shipments, FX, inventory"],
+            ["Workflow", "backend/app/services/shipment_workflow.py", "Allocate → suggest → commit (Facade)"],
+            ["Formulas", "backend/app/services/costing.py", "Landed-cost Template Method over Strategies"],
+            ["Strategies", "backend/app/services/strategies/", "Allocation, line-cost modes, FX providers"],
+            ["Data", "backend/app/models/", "SQLAlchemy entities (batch, items, ledger, sales…)"],
+            ["Config / DB", "backend/app/core/, db/session.py", "Settings, JWT, engine / pool"],
+        ],
+    )
+
+    add_heading(doc, "3. Main functionalities → files", 1)
+    add_table(
+        doc,
+        ["Feature", "Backend", "Frontend"],
+        [
+            ["Login / Create account", "api/v1/auth.py, core/security.py", "pages/LoginPage.jsx, auth.jsx"],
+            ["Products + CSV", "api/v1/products.py", "pages/ProductsPage.jsx, csvImport.js"],
+            ["Create shipment / dual mode", "api/v1/shipments.py", "pages/ShipmentsPage.jsx, costModes.js"],
+            ["Lines, costs, Fetch FX", "shipments.py, services/fx.py", "pages/ShipmentDetailPage.jsx"],
+            ["Allocate / suggest / commit", "shipment_workflow.py + costing.py", "pages/TrueCostPage.jsx"],
+            ["Cost history (ledger)", "shipments ledger endpoints + models", "ShipmentDetailPage + ledgerFormat.js"],
+            ["Stock + Record sale", "api/v1/inventory.py", "pages/InventoryPage.jsx"],
+            ["Start fresh (reset)", "api/v1/admin.py", "pages/DashboardPage.jsx"],
+            ["Safety floor (Landed×1.1)", "shipment_workflow / suggest-prices", "TrueCostPage.jsx (live adjust)"],
+        ],
+    )
+    add_para(
+        doc,
+        "Demo CSV samples: docs/scenarios/samples/. Import path hits the Products / Shipments pages above.",
+        size=10,
+    )
+
+    add_heading(doc, "4. Design principles / patterns — in code", 1)
+    add_para(
+        doc,
+        "On the architecture diagram, the Services box is labelled in plain words (costing, workflow, FX). "
+        "Pattern names below are for viva answers — not required on the slide.",
+        size=10,
+    )
+    add_para(
+        doc,
+        "Plain English first: Facade = one door for “run the shipment costing steps.” "
+        "Strategy = plug-in rules for “how to allocate” and “how to price a line.” "
+        "Then give the file path if asked.",
+        size=10,
+        italic=True,
+    )
+
+    add_heading(doc, "4.1 GoF patterns", 2)
+    add_table(
+        doc,
+        ["Pattern", "Where", "What it does here"],
+        [
+            [
+                "Facade",
+                "services/shipment_workflow.py",
+                "One place for allocate, suggest prices, commit — routers stay thin",
+            ],
+            [
+                "Strategy",
+                "strategies/allocation.py, line_cost.py",
+                "Swap quantity/weight/value or Already-Local/Auto FX without rewriting callers",
+            ],
+            [
+                "Simple Factory",
+                "get_allocation_strategy(), get_line_cost_strategy()",
+                "Pick the Strategy from a string (method / mode name)",
+            ],
+            [
+                "Template Method",
+                "costing.compute_landed_for_method()",
+                "Fixed steps (basis → shares → assemble); Strategies fill the varying bits",
+            ],
+            [
+                "Chain of Responsibility",
+                "strategies/fx_providers.py (+ fx.py)",
+                "Try Identity → Frankfurter → open.er-api until a rate works",
+            ],
+        ],
+    )
+
+    add_heading(doc, "4.2 Layering & GRASP (short)", 2)
+    add_bullet(doc, "Controller: FastAPI routers accept HTTP and delegate — they do not own the formulas.")
+    add_bullet(doc, "Information Expert: costing / Strategies own the math; models own persisted fields.")
+    add_bullet(doc, "Low Coupling: React talks only via api.js → REST; costing.py does not import FastAPI.")
+    add_bullet(doc, "Protected Variations: new allocation method or FX source registers in strategies/, not in every page.")
+    add_bullet(
+        doc,
+        "Separation of concerns: UI (React) · API (routers) · domain (services) · data (models/DB).",
+    )
+
+    add_heading(doc, "5. One-line viva answers", 1)
+    add_qa(
+        doc,
+        "What do React, FastAPI, and SQLAlchemy each do here?",
+        "React = screens; FastAPI = REST API the screens call; SQLAlchemy = tables for products/shipments/ledger. "
+        "Costing math is in services/, not inside those frameworks.",
+    )
+    add_qa(
+        doc,
+        "Where is landed cost calculated?",
+        "backend/app/services/costing.py, using Strategies under services/strategies/; True Cost UI is TrueCostPage.jsx.",
+    )
+    add_qa(
+        doc,
+        "Where is the Facade?",
+        "shipment_workflow.py — allocate, suggest, and commit go through it so api/v1/shipments.py stays thin.",
+    )
+    add_qa(
+        doc,
+        "How did you apply Strategy?",
+        "Allocation (quantity/weight/value) and line cost (Already-Local / Auto FX) are interchangeable Strategy classes selected by name.",
+    )
+    add_qa(
+        doc,
+        "How does Fetch FX fail over?",
+        "Chain of Responsibility in fx_providers.py: try providers in order; then cache / manual override.",
+    )
+    add_qa(
+        doc,
+        "Why is FxRateCache not a child of ShipmentBatch?",
+        "Standalone market memory (reusable last-known rate). The shipment stores its own applied rate so "
+        "costing stays frozen per batch; Already-Local does not need FX at all.",
+    )
+
+    add_para(
+        doc,
+        "Fuller write-up: docs/design/software_engineering_principles.md and docs/design/architecture.md.",
+        italic=True,
+        size=10,
+    )
+
+    path = OUT_DIR / "Tranz-Algo_Code_Map_and_Design_Principles.docx"
+    doc.save(path)
+    return path
+
+
 if __name__ == "__main__":
     for builder in (
         build_how_to_use_app,
@@ -1002,5 +1342,6 @@ if __name__ == "__main__":
         build_tech_and_qa,
         build_presentation_coach,
         build_contribution_split,
+        build_code_map_and_principles,
     ):
         print(builder())

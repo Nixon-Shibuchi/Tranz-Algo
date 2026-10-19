@@ -9,7 +9,8 @@ All operator / viva guidance lives here as **Word documents**. Regenerate them w
 | [Tranz-Algo_Presentation_Training_Guide.docx](./Tranz-Algo_Presentation_Training_Guide.docx) | Talk structure, demo script, rehearsal, roles |
 | [Tranz-Algo_Technology_Justification_and_Viva_QA.docx](./Tranz-Algo_Technology_Justification_and_Viva_QA.docx) | Stack deltas + likely panel Q&A |
 | [Tranz-Algo_Contribution_Split.docx](./Tranz-Algo_Contribution_Split.docx) | Nixon vs Musonda work division (design joint; code mostly Nixon) |
-| [build_viva_docs.py](./build_viva_docs.py) | Regenerates all five `.docx` files |
+| [Tranz-Algo_Code_Map_and_Design_Principles.docx](./Tranz-Algo_Code_Map_and_Design_Principles.docx) | Where main features live + how Facade/Strategy/Chain appear in code |
+| [build_viva_docs.py](./build_viva_docs.py) | Regenerates all viva `.docx` files |
 
 **CSV samples** (data only): [`../scenarios/samples/`](../scenarios/samples/)  
 **Spreadsheet oracle** = independently calculated expected Demo A/B numbers (hand/spreadsheet ground truth); the app must match within ±0.01 ZMW. Tables: [`../scenarios/`](../scenarios/). Panel wording is in the Q&A Word doc.
@@ -26,4 +27,5 @@ cd backend
 1. How to Use the App  
 2. Demo Shipment Data (second screen / printout)  
 3. Presentation Training Guide  
-4. Technology Justification & Viva Q&A (for panel questions)
+4. Technology Justification & Viva Q&A (for panel questions)  
+5. Code Map & Design Principles (if asked “where is X in the code?”)

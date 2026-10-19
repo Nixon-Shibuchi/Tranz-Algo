@@ -47,7 +47,7 @@ STUDENT_1 = "Nixon Shibuchi"
 STUDENT_1_COMP = "2021437361"
 STUDENT_2 = "Musonda Katongo"
 STUDENT_2_COMP = "2020583969"
-SUPERVISOR = "[SUPERVISOR NAME]"
+SUPERVISOR = "Mrs. Leena Kumar"
 REPO_URL = "https://github.com/Nixon-Shibuchi/Tranz-Algo"
 
 
@@ -81,7 +81,7 @@ def style_table_cell(cell, *, size, bold=False, color=DARK, fill=None):
             r.font.name = FONT
 
 
-def add_chrome(slide, page: int, total: int = 16):
+def add_chrome(slide, page: int, total: int = 17):
     """Top accent bar + footer (readable when projected or printed)."""
     bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, Inches(0.16))
     _set_fill(bar, TEAL)
@@ -273,13 +273,31 @@ def build():
         size=18,
     )
 
-    # ---- 3 Overview ----
+    # ---- 3 What is Tranz-Algo? ----
     s = blank_slide(prs)
     add_chrome(s, 3)
+    add_title(s, "What is Tranz-Algo?")
+    add_bullets(
+        s,
+        [
+            "A web admin app for import retailers — not a till/POS, not customs software, not a full ERP",
+            "You create a shipment batch from supplier invoices plus shipping, duty and VAT paperwork",
+            "It splits those shared costs onto each product → a clear true landed cost per unit",
+            "It suggests a safe retail price (your margin, with a 10% safety floor above landed cost)",
+            "When you commit: Cost history is saved and shelf stock is updated for that batch",
+            "Two modes: Already-Local (amounts already in ZMW) or Auto FX (foreign prices × exchange rate)",
+        ],
+        size=19,
+    )
+
+    # ---- 4 Overview ----
+    s = blank_slide(prs)
+    add_chrome(s, 4)
     add_title(s, "Presentation Overview")
     add_bullets(
         s,
         [
+            "What Tranz-Algo is (and is not)",
             "Background and Context",
             "System Analysis and Design (architecture, data, algorithms)",
             "Implementation / Development",
@@ -288,12 +306,12 @@ def build():
             "Conclusion",
             "System Demonstration",
         ],
-        size=22,
+        size=20,
     )
 
-    # ---- 4 Background ----
+    # ---- 5 Background ----
     s = blank_slide(prs)
-    add_chrome(s, 4)
+    add_chrome(s, 5)
     add_title(s, "Background and Context")
     add_bullets(
         s,
@@ -307,13 +325,13 @@ def build():
         size=20,
     )
 
-    # ---- 5 Architecture ----
+    # ---- 6 Architecture ----
     s = blank_slide(prs)
-    add_chrome(s, 5)
+    add_chrome(s, 6)
     add_title(s, "System Architecture")
     add_caption(
         s,
-        "Three-tier: React SPA → FastAPI /api/v1 → PostgreSQL (SQLite fallback) · optional Frankfurter FX · JWT",
+        "React screens → FastAPI → services (costing / workflow / FX) → PostgreSQL · optional live FX · JWT",
         top=Inches(1.05),
     )
     fit_picture(
@@ -324,9 +342,9 @@ def build():
         max_height=Inches(5.15),
     )
 
-    # ---- 6 ERD ----
+    # ---- 7 ERD ----
     s = blank_slide(prs)
-    add_chrome(s, 6)
+    add_chrome(s, 7)
     add_title(s, "Database / Data Design")
     add_caption(
         s,
@@ -341,9 +359,9 @@ def build():
         max_height=Inches(5.25),
     )
 
-    # ---- 7 Algorithms + dual modes ----
+    # ---- 8 Algorithms + dual modes ----
     s = blank_slide(prs)
-    add_chrome(s, 7)
+    add_chrome(s, 8)
     add_title(s, "Algorithms / Models / Technical Design")
     add_bullets(
         s,
@@ -353,7 +371,6 @@ def build():
             "Allocate shipping / duty / VAT by quantity or weight; compare methods",
             "Suggested RP = Landed × (1 + margin)",
             "Safety floor = Landed × 1.10 (live on True Cost adjust)",
-            "UI Auto FX starts at 20 (or last cache); Demo B check uses rate 27.50",
         ],
         left=Inches(0.45),
         top=Inches(1.15),
@@ -370,28 +387,26 @@ def build():
         left=Inches(7.15),
     )
 
-    # ---- 8 Dev environment ----
+    # ---- 9 Dev environment ----
     s = blank_slide(prs)
-    add_chrome(s, 8)
+    add_chrome(s, 9)
     add_title(s, "Development Environment")
     add_bullets(
         s,
         [
-            "Operating system: Windows 10 / 11",
             "Languages: Python 3, JavaScript (React)",
             "Frameworks: FastAPI, Vite/React, SQLAlchemy 2, Pydantic",
             "Database: PostgreSQL (primary), SQLite fallback",
             "FX: Frankfurter / open.er-api + cache / manual",
-            "Tools: VS Code / Cursor, pytest, Git / GitHub",
+            "Tools: VS Code / Cursor, Git / GitHub",
             f"Repository: {REPO_URL}",
-            "Run: uvicorn :8000 · npm run dev :5173",
         ],
         size=19,
     )
 
-    # ---- 9 Modules ----
+    # ---- 10 Modules ----
     s = blank_slide(prs)
-    add_chrome(s, 9)
+    add_chrome(s, 10)
     add_title(s, "System Components / Modules")
     add_bullets(
         s,
@@ -407,9 +422,9 @@ def build():
         size=19,
     )
 
-    # ---- 10 Key implementation + workflow ----
+    # ---- 11 Key implementation + workflow ----
     s = blank_slide(prs)
-    add_chrome(s, 10)
+    add_chrome(s, 11)
     add_title(s, "Key Implementation Details")
     add_bullets(
         s,
@@ -431,31 +446,29 @@ def build():
         max_height=Inches(2.9),
     )
 
-    # ---- 11 Challenges ----
+    # ---- 12 Challenges ----
     s = blank_slide(prs)
-    add_chrome(s, 11)
+    add_chrome(s, 12)
     add_title(s, "Challenges and Solutions")
     add_bullets(
         s,
         [
             "Mixed foreign/local paperwork → Dual cost modes at shipment create",
-            "React Native scope risk → Deliver React web admin; defer mobile companion",
             "FX API downtime → Cache, starter rate 20, manual override",
-            "Opaque spreadsheets → Allocation comparator + Cost history When/What",
         ],
         size=20,
     )
 
-    # ---- 12 Tests ----
+    # ---- 13 Tests ----
     s = blank_slide(prs)
-    add_chrome(s, 12)
+    add_chrome(s, 13)
     add_title(s, "Test Results")
     rows, cols = 7, 3
     table = s.shapes.add_table(rows, cols, Inches(0.55), Inches(1.2), Inches(12.2), Inches(5.3)).table
     headers = ["ID", "Test case", "Status"]
     data = [
         ["TC-01", "Already-Local Demo A vs expected spreadsheet costs (±0.01 ZMW)", "PASS"],
-        ["TC-02", "Auto FX Demo B vs expected costs (check rate 27.50)", "PASS"],
+        ["TC-02", "Auto FX Demo B vs expected costs (rate 20)", "PASS"],
         ["TC-03", "Allocation compare qty vs weight (Demo A)", "PASS"],
         ["TC-04", "Safety floor on True Cost adjust", "PASS"],
         ["TC-05", "CSV UI demo path (Scenario 05)", "PASS"],
@@ -473,9 +486,9 @@ def build():
             color = TEAL if j == 2 else DARK
             style_table_cell(cell, size=TABLE_BODY, bold=(j == 2), color=color, fill=fill)
 
-    # ---- 13 Discussion ----
+    # ---- 14 Discussion ----
     s = blank_slide(prs)
-    add_chrome(s, 13)
+    add_chrome(s, 14)
     add_title(s, "Discussion of Findings")
     add_bullets(
         s,
@@ -483,30 +496,29 @@ def build():
             "Demo A/B costs matched our pre-calculated spreadsheet answers — formulas are correct",
             "Dual modes address mixed paperwork — the original problem",
             "Design, build and evaluate objectives were met for MVP scope",
-            "Vs existing work: narrower than ERP, clearer than spreadsheets, not a POS",
             "Key finding: explainable batch costing can be accurate and usable",
         ],
         size=20,
     )
 
-    # ---- 14 Limitations ----
+    # ---- 15 Limitations ----
     s = blank_slide(prs)
-    add_chrome(s, 14)
+    add_chrome(s, 15)
     add_title(s, "Limitations")
     add_bullets(
         s,
         [
             "Does not legally assess customs duty/VAT — paperwork totals only",
-            "UI Auto FX starts at 20 (or last cache); Demo B number-check uses rate 27.50",
+            "Auto FX / Demo B number-check use rate 20 (same as UI starter)",
             "Value-based allocation is stretch in the UI",
             "No large-scale SME field trial yet — evaluation is spreadsheet checks + live demo",
         ],
         size=20,
     )
 
-    # ---- 15 Conclusion ----
+    # ---- 16 Conclusion ----
     s = blank_slide(prs)
-    add_chrome(s, 15)
+    add_chrome(s, 16)
     add_title(s, "Conclusion")
     add_bullets(
         s,
@@ -519,7 +531,7 @@ def build():
         size=20,
     )
 
-    # ---- 16 Questions ----
+    # ---- 17 Questions ----
     s = blank_slide(prs)
     bg = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, SLIDE_W, SLIDE_H)
     _set_fill(bg, NAVY)

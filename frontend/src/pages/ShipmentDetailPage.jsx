@@ -232,24 +232,19 @@ export default function ShipmentDetailPage() {
     });
     if (!confirmed) return;
     setImporting(true);
-    let okCount = 0;
-    const fail = [...errors];
     try {
-      for (const row of ready) {
-        const { __row, __sku, ...payload } = row;
-        try {
-          await api(`/shipments/${id}/items`, {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
-          okCount += 1;
-        } catch (err) {
-          fail.push(`Row ${__row} (${__sku}): ${err.message}`);
-        }
-      }
+      const items = ready.map(({ __row, __sku, ...payload }) => payload);
+      const result = await api(`/shipments/${id}/items/bulk`, {
+        method: "POST",
+        body: JSON.stringify({ items }),
+      });
+      const fail = [...errors, ...(result.errors || [])];
+      const okCount = result.created?.length ?? 0;
       await load({ quiet: true });
       if (okCount) setOk(`Imported ${okCount} line(s) from CSV.`);
       if (fail.length) setError(fail.slice(0, 4).join(" · "));
+    } catch (err) {
+      setError(err.message);
     } finally {
       setImporting(false);
     }
@@ -536,7 +531,7 @@ export default function ShipmentDetailPage() {
                 />
                 <span className="form-field-hint">
                   Starts at {DEFAULT_STARTER_FX_RATE} or the last fetched rate. Use Fetch FX for a
-                  live rate (demo oracle often uses 27.50).
+                  live rate (Demo B oracle uses starter rate 20).
                 </span>
               </label>
               <button type="button" className="btn" onClick={fetchFx}>

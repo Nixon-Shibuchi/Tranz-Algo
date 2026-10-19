@@ -11,7 +11,7 @@ This note maps **Lehman’s laws of software evolution**, **GRASP**, and **GoF**
 
 ```mermaid
 flowchart LR
-  FE[React SPA] -->|JWT HTTP| API[FastAPI routers]
+  FE[React frontend] -->|JWT HTTP| API[FastAPI routers]
   API --> Fac[Facade workflow]
   Fac --> Strat[Strategies costing FX]
   Fac --> ORM[SQLAlchemy models]

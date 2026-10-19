@@ -3,7 +3,7 @@ reference,SHP-DEMO-AUTO-FX
 mode,auto_fx
 supplier,Shenzhen Parts Co
 currency_foreign,USD
-notes,DEMO B — Auto FX. Starter rate 20 (or last fetched). Click Fetch FX for live; for oracle check use 27.50.
+notes,DEMO B — Auto FX. Rate 20 (CSV / UI starter). Optional Fetch FX for live; keep 20 to match demo oracle.
 exchange_rate,20
 shipping,2800
 duty,700

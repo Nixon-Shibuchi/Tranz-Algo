@@ -153,46 +153,35 @@ export default function ShipmentsPage() {
 
     setImporting(true);
     try {
-      const created = await api("/shipments", {
-        method: "POST",
-        body: JSON.stringify(parsed.header),
-      });
       const c = parsed.costs || {};
-      if (
+      const hasCosts =
         c.exchange_rate != null ||
         c.shipping_total != null ||
         c.duty_total != null ||
         c.vat_total != null ||
-        c.paperwork_source
-      ) {
-        await api(`/shipments/${created.id}/costs`, {
-          method: "PUT",
-          body: JSON.stringify({
-            exchange_rate: c.exchange_rate,
-            exchange_rate_source: c.exchange_rate != null ? "manual" : null,
-            shipping_total: c.shipping_total,
-            duty_total: c.duty_total,
-            vat_total: c.vat_total,
-            paperwork_source: c.paperwork_source,
-          }),
-        });
-      }
-      const fail = [...allErrors];
-      let okLines = 0;
-      for (const row of lines) {
-        const { __row, __sku, ...payload } = row;
-        try {
-          await api(`/shipments/${created.id}/items`, {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
-          okLines += 1;
-        } catch (err) {
-          fail.push(`Line ${__sku}: ${err.message}`);
-        }
-      }
+        c.paperwork_source;
+      const items = lines.map(({ __row, __sku, ...payload }) => payload);
+      const result = await api("/shipments/import", {
+        method: "POST",
+        body: JSON.stringify({
+          shipment: parsed.header,
+          costs: hasCosts
+            ? {
+                exchange_rate: c.exchange_rate,
+                exchange_rate_source: c.exchange_rate != null ? "manual" : null,
+                shipping_total: c.shipping_total,
+                duty_total: c.duty_total,
+                vat_total: c.vat_total,
+                paperwork_source: c.paperwork_source,
+              }
+            : null,
+          items,
+        }),
+      });
+      const fail = [...allErrors, ...(result.errors || [])];
+      const created = result.shipment;
       setOk(
-        `Imported ${created.reference} with ${okLines} line(s). Open True Cost to allocate.`
+        `Imported ${created.reference} with ${result.items_created} line(s). Open True Cost to allocate.`
       );
       if (fail.length) setError(fail.slice(0, 4).join(" · "));
       await load({ quiet: true });
