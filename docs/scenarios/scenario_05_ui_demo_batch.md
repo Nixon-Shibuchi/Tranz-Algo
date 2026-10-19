@@ -2,7 +2,7 @@
 
 **Handout (viva folder):** [`../viva/Tranz-Algo_Demo_Shipment_Data.docx`](../viva/Tranz-Algo_Demo_Shipment_Data.docx)  
 **How to use the app:** [`../viva/Tranz-Algo_How_to_Use_the_App.docx`](../viva/Tranz-Algo_How_to_Use_the_App.docx)  
-**Regenerate all viva docs:** `python docs/viva/build_viva_docs.py`  
+**Viva Word pack:** see [`docs/viva/`](../viva/).
 **Detail oracles:** Scenario 01 (A) · Scenario 02 (B) · Scenario 03 (comparator) · Scenario 04 (floor)
 
 ---

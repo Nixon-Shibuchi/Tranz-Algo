@@ -35,8 +35,8 @@ flowchart TB
                │ HTTP JSON + JWT
                ▼
 ┌─────────────────────────────┐
-│  FastAPI (/api/v1 :8000)    │
-│  Routers → Services → ORM   │
+│  FastAPI backend (:8000)    │
+│  Login-protected API → Services → ORM │
 └──────────────┬──────────────┘
                │
                ▼

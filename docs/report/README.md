@@ -1,14 +1,14 @@
 # Final report & presentation pack
 
-Generated from the University of Zambia **2026** templates using as-built Tranz-Algo content and drawn diagrams.
+As-built Tranz-Algo Word reports and PowerPoint deck for submission / viva.
 
 | File | Description |
 |---|---|
 | [Tranz-Algo_Final_Year_Project_Report_2026_Nixon_Shibuchi.docx](./Tranz-Algo_Final_Year_Project_Report_2026_Nixon_Shibuchi.docx) | Individual report for Nixon (cover logos + Appendix A) |
 | [Tranz-Algo_Final_Year_Project_Report_2026_Musonda_Katongo.docx](./Tranz-Algo_Final_Year_Project_Report_2026_Musonda_Katongo.docx) | Individual report for Musonda (cover logos + Appendix A) |
-| [Tranz-Algo_Final_Year_Project_Presentation_2026.pptx](./Tranz-Algo_Final_Year_Project_Presentation_2026.pptx) | 17-slide deck (includes “What is Tranz-Algo?” intro; diagrams fitted) |
+| [Tranz-Algo_Final_Year_Project_Presentation_2026.pptx](./Tranz-Algo_Final_Year_Project_Presentation_2026.pptx) | Presentation deck (includes “What is Tranz-Algo?” intro) |
 | [figures/](./figures/) | Architecture, ERD, dual modes, True Cost workflow PNGs |
-| [figures/screenshots/](./figures/screenshots/) | As-built UI screenshots used in §4.8 (from `docs/Screenshots/`) |
+| [figures/screenshots/](./figures/screenshots/) | As-built UI screenshots used in the reports |
 
 ## What you submit
 
@@ -20,26 +20,15 @@ Generated from the University of Zambia **2026** templates using as-built Tranz-
 ## Print / grading notes
 
 **Reports** (A4 hard copy): Times New Roman 12 pt body, 1.5 line spacing, black text,
-larger headings, shaded table headers, page numbers, and high-DPI diagrams at ~6.1″ width.
+larger headings, shaded table headers, page numbers, and high-DPI diagrams.
 
-**Presentation** (projector / handout): larger titles (~32 pt) and body (~20 pt), black text,
+**Presentation** (projector / handout): larger titles and body, black text,
 UNZA + Tranz-Algo logos on the title slide, high-DPI diagrams, repo URL on title + closing slides.
 Open the PPTX in Slide Show once to confirm ERD / architecture stay readable at room distance.
 
 ## Before you submit
 
 1. Computer numbers and supervisor are set (Nixon `2021437361`, Musonda `2020583969`, **Mrs. Leena Kumar**).
-2. Confirm `REPO_URL` in `build_report.py` matches the public/shareable repo examiners should open.
-3. Re-run the builders (below).
-4. Skim the Word report for personal acknowledgements / signatures.
-5. Rehearse the PPT with the live Demo A/B.
-
-## Regenerate
-
-```powershell
-cd docs\report
-..\..\backend\.venv\Scripts\python.exe build_report.py
-..\..\backend\.venv\Scripts\python.exe build_presentation.py
-```
-
-Templates used (project root): `Final_Year_Project_Report_Template_2026.pdf`, `Presentation_Template_2026.pptx`.
+2. Confirm the GitHub URL on the cover matches the public/shareable repo examiners should open.
+3. Skim the Word report for personal acknowledgements / signatures.
+4. Rehearse the PPT with the live Demo A/B (see `docs/viva/` training guide — ~5 min slides in a 15-min slot).

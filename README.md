@@ -30,7 +30,7 @@ Operator and viva guidance is in **Word documents** under [`docs/viva/`](docs/vi
 | [Presentation Training Guide](docs/viva/Tranz-Algo_Presentation_Training_Guide.docx) | Talk script + rehearsal |
 | [Technology Justification & Viva Q&A](docs/viva/Tranz-Algo_Technology_Justification_and_Viva_QA.docx) | Panel questions |
 
-CSV samples: [`docs/scenarios/samples/`](docs/scenarios/samples/). Regenerate docs: `python docs/viva/build_viva_docs.py`.
+CSV samples: [`docs/scenarios/samples/`](docs/scenarios/samples/).
 
 **Quick demo:** Import `products_demo.csv` → `shipment_A_full.csv` / `shipment_B_full.csv` → True Cost → allocate → commit.  
 References: `SHP-DEMO-LOCAL-ZMW` (qty, margin 0.30) and `SHP-DEMO-AUTO-FX` (weight; FX rate **20** for the demo oracle — same as UI starter).
