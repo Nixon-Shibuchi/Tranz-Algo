@@ -329,8 +329,8 @@ Tranz-Algo answers: *“What did this imported item actually cost me, what shoul
 
 ## Academic / project docs
 
-- Original proposal: `tranzalgo proposal.docx`
-- Presentation: `Tranz-Algo.pptx`
+- Original proposal: `docs/report/tranzalgo proposal.docx`
+- Presentation: `docs/report/Tranz-Algo_Final_Year_Presentation_2026.pptx`
 - Literature pack (complete): `docs/literature/` — start at `README.md`
 - Design pack (complete): `docs/design/` — start at `README.md`
 - Evaluation scenarios: `docs/scenarios/` (see `eval_note.md`)

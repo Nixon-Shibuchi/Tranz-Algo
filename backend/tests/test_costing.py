@@ -121,3 +121,59 @@ def test_demo_b_weight_auto_fx():
     assert s[2] == 181.25
     assert s[3] == 57.81
     assert s[4] == 115.63
+
+
+def test_demo_b_quantity_auto_fx():
+    """Same SHP-DEMO-AUTO-FX paperwork as the weight oracle, allocated by quantity."""
+    items = [
+        {
+            "id": 1,
+            "quantity": 40,
+            "weight_kg": 2.0,
+            "line_cost_mode": "auto_fx",
+            "foreign_unit_price": 6.00,
+        },
+        {
+            "id": 2,
+            "quantity": 30,
+            "weight_kg": 6.0,
+            "line_cost_mode": "auto_fx",
+            "foreign_unit_price": 4.00,
+        },
+        {
+            "id": 3,
+            "quantity": 40,
+            "weight_kg": 2.0,
+            "line_cost_mode": "auto_fx",
+            "foreign_unit_price": 1.50,
+        },
+        {
+            "id": 4,
+            "quantity": 40,
+            "weight_kg": 4.0,
+            "line_cost_mode": "auto_fx",
+            "foreign_unit_price": 3.00,
+        },
+    ]
+    results = compute_landed_for_method(
+        items,
+        method="quantity",
+        shipping_total=2800,
+        exchange_rate=20,
+        batch_duty_total=700,
+        batch_vat_total=1050,
+    )
+    by_id = {r["item_id"]: r for r in results}
+    assert by_id[1]["landed_unit_cost"] == 150.33
+    assert by_id[2]["landed_unit_cost"] == 110.33
+    assert by_id[3]["landed_unit_cost"] == 60.33
+    assert by_id[4]["landed_unit_cost"] == 90.33
+
+    suggested = suggest_prices(
+        [(r["item_id"], r["landed_unit_cost"]) for r in results], 0.25
+    )
+    s = {x["item_id"]: x["suggested_retail_price"] for x in suggested}
+    assert s[1] == 187.91
+    assert s[2] == 137.91
+    assert s[3] == 75.41
+    assert s[4] == 112.91

@@ -4,9 +4,10 @@ As-built Tranz-Algo Word reports and PowerPoint deck for submission / viva.
 
 | File | Description |
 |---|---|
-| [Tranz-Algo_Final_Year_Project_Report_2026_Nixon_Shibuchi.docx](./Tranz-Algo_Final_Year_Project_Report_2026_Nixon_Shibuchi.docx) | Individual report for Nixon (cover logos + Appendix A) |
-| [Tranz-Algo_Final_Year_Project_Report_2026_Musonda_Katongo.docx](./Tranz-Algo_Final_Year_Project_Report_2026_Musonda_Katongo.docx) | Individual report for Musonda (cover logos + Appendix A) |
-| [Tranz-Algo_Final_Year_Project_Presentation_2026.pptx](./Tranz-Algo_Final_Year_Project_Presentation_2026.pptx) | Presentation deck (includes “What is Tranz-Algo?” intro) |
+| [Tranz-Algo_Project_Report_2026_Nixon_Shibuchi.docx](./Tranz-Algo_Project_Report_2026_Nixon_Shibuchi.docx) | Individual report for Nixon (cover logos + Appendix A) |
+| [Tranz-Algo Report Nixon Shibuchi.pdf](./Tranz-Algo%20Report%20Nixon%20Shibuchi.pdf) | PDF of Nixon's report |
+| [Tranz-Algo_Project_Report_2026_Musonda_Katongo.docx](./Tranz-Algo_Project_Report_2026_Musonda_Katongo.docx) | Individual report for Musonda (cover logos + Appendix A) |
+| [Tranz-Algo_Final_Year_Presentation_2026.pptx](./Tranz-Algo_Final_Year_Presentation_2026.pptx) | Presentation deck (includes “What is Tranz-Algo?” intro) |
 | [figures/](./figures/) | Architecture, ERD, dual modes, True Cost workflow PNGs |
 | [figures/screenshots/](./figures/screenshots/) | As-built UI screenshots used in the reports |
 
